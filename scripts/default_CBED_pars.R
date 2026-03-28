@@ -1,0 +1,53 @@
+get_default_pars <- function() {
+  list(
+    J.OM                         = 11.05*365/10, # derived from bc.data
+    k.NOx                        = 1e6,
+    k.ana                        = 1e5,
+    k.ODUox                      = 1e6,
+    Ks.O2                        = 0.008,
+    Ks.NO3                       = 0.001,
+    K.equilNH4                   = 1.6,
+    Db.max                       = 48,
+    xb.Db                        = 2,
+    xL                           = 12,
+    alpha.max                    = 10,
+    xL.alpha                     = 20,           # not in cbed_v1_func.R
+    alpha.zi                     = 3,
+    irr.enh.0                    = 1,
+    irr.enh.L                    = 10,
+    O2.w                         = 0.276,        # derived from bc.data
+    NO3.w                        = 0.008,        # derived from bc.data
+    NH4.w                        = 0.0006,       # derived from bc.data
+    ODU.w                        = 0,
+    DIC.w                        = 2.16,
+    TAlk.w                       = 2.2,
+    rNC.1                        = 0.15,
+    rNC.2                        = 0.15,
+    rNC.3                        = 0.15,         # not in cbed_v1_func.R
+    rNC                          = 0.15,         # not in cbed_v1_func.R
+    por.0                        = 0.67,
+    por.inf                      = 0.67,
+    por.att                      = 2,
+    depth                        = 74,           # not in cbed_v1_func.R
+    temp                         = 6.87,         # derived from bc.data
+    Q10                          = 1.88,         # not in cbed_v1_func.R
+    S                            = 34,
+    w                            = 0.0359,       # derived from bc.data
+    L                            = 20,
+    N                            = 20,
+    ps                           = 2.5,
+    # f.OM1                        = NA,           # missing - default in cbed_v1_func.R unknown
+    # f.OM2                        = NA,           # missing - default in cbed_v1_func.R unknown
+    # f.OM3                        = NA,           # missing - default in cbed_v1_func.R unknown
+    # k1                           = NA,           # missing - only in manual_control
+    # k2                           = NA,           # missing - only in manual_control
+    # k3                           = NA,           # missing - only in manual_control
+    # k.adj.denit                  = NA,           # missing - loose variable in run script
+    # k.adj.anoxia                 = NA,           # missing - loose variable in run script
+    switch.odu.burial            = 1,            # not in cbed_v1_func.R
+    switch.oxy.dependent.k       = 1,            # not in cbed_v1_func.R
+    run_with_climatological_mean = 0,            # not in cbed_v1_func.R
+    run_with_climatology         = 0,            # not in cbed_v1_func.R
+    run_temporal                 = 1             # not in cbed_v1_func.R
+  )
+}

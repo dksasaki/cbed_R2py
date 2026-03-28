@@ -1,0 +1,20 @@
+[workspace]
+authors = ["dksasaki <dalton.sasaki@gmail.com>"]
+channels = ["conda-forge"]
+name = "cbed_R_py"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+
+[dependencies]
+python     = "==3.11"
+numpy      = "==1.26.0"
+pandas     = "*"
+rpy2       = "*"
+r-base = "*"
+r-desolve = "*"
+r-rootsolve = "*"
+r-readxl = "*"
+ipython  = "*"
+[tasks]
+setup-r = "Rscript -e \"install.packages(c('ReacTran', 'marelac', 'splines'), repos='https://cloud.r-project.org')\""
