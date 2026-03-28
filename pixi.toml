@@ -18,6 +18,6 @@ r-readxl = "*"
 ipython  = "*"
 xarray   = "*"
 matplotlib = "*"
-
+dask       = "*"
 [tasks]
 setup-r = "Rscript -e \"install.packages(c('ReacTran', 'marelac', 'splines'), repos='https://cloud.r-project.org')\""
