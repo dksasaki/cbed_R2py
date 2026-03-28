@@ -1,0 +1,3 @@
+[submodule "src/cbed_R"]
+	path = src/cbed_R
+	url = git@github.com:dksasaki/cbed_R.git
