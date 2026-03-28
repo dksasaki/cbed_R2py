@@ -24,6 +24,16 @@ def julian2npdatetime(ds):
 
 def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None):
     
+    def _assert_variables(ds, varbs, path):
+        assert_list = []
+        for  v in varbs:
+            if v in ds:
+                pass
+            else:
+                assert_list.append(v)
+        assert len(assert_list)==0, f"{assert_list} not found in {path}"
+
+
     assert(paths),"must be a string"
     
     f = lambda x: sorted(glob.glob(x))
@@ -32,6 +42,9 @@ def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None):
     for path in paths:  # we use a for instead of mfdataset to avoid a memory issue
         print(path)
         ds = xr.open_dataset(path, lock=False)
+
+        _assert_variables(ds, varbs, path)
+
         ds = julian2npdatetime(ds)
         aux = ds[varbs]
 
@@ -59,11 +72,11 @@ def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None):
     return dscobalt
 
 def _variables_model():
-    varbs_cobalt = [
+    varbs_cobalt_btm = [
         # Dissolved inorganic
         "btm_o2",           # oxygen
         "btm_no3",          # nitrate
-        "btm_nh4",          # ammonium
+        # "btm_nh4",          # ammonium
         "btm_dic",          # dissolved inorganic carbon
         "btm_alk",          # alkalinity
 
@@ -101,20 +114,38 @@ def _variables_model():
         "flithdet_btm",     # lithogenic detritus
     ]
     varbs_mom6   = ['temp', 'salt']
-    return varbs_cobalt, varbs_mom6
+    varbs_cobalt_tr = ['nh4']
+    return varbs_cobalt_btm, varbs_mom6, varbs_cobalt_tr
 
-f = lambda x: sorted(glob.glob(x))
+def read_variables():
+    f = lambda x: sorted(glob.glob(x))
 
-fpath = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw0'
-ftopo = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
+    fpath = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw'
+    ftopo = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
 
-varbs_cobalt, varbs_mom6 = _variables_model()
+    varbs_cobalt_btm, varbs_mom6, varbs_cobalt_tr = _variables_model()
 
 
-# fpaths_cobalt     = osp.join(fpath,'*sediment_cbed.nc')
-# dscobalt          = read_mom6cobalt(fpath, ftopo, varbs_cobalt)
+    fpaths_cobalt     = osp.join(fpath,'*cobalt_btm.nc')
+    dscobalt_btm          = read_mom6cobalt(fpaths_cobalt, ftopo, varbs_cobalt_btm)
 
-fpaths_mom6       = osp.join(fpath,'*ocean_daily.nc')
-dsmom             = read_mom6cobalt(fpaths_mom6, ftopo, varbs_mom6, chunk_dict={'zl':1})
-dsmom             = dsmom.isel(zl=-1)
-dsmom             = dsmom.mean(dim='time')
+
+    fpaths_cobalt     = osp.join(fpath,'*cobalt_tracers.nc')
+    dscobalt_tr       = read_mom6cobalt(fpaths_cobalt, ftopo, varbs_cobalt_tr, chunk_dict={'z_l':1})
+    dscobalt_tr       = dscobalt_tr.ffill(dim='z_l') \
+                                .bfill(dim='z_l')
+    dscobalt_tr       = dscobalt_tr.isel(z_l=-1)
+
+    fpaths_mom6       = osp.join(fpath,'*ocean_daily.nc')
+    dsmom             = read_mom6cobalt(fpaths_mom6, ftopo, varbs_mom6, chunk_dict={'zl':1})
+    dsmom             = dsmom.isel(zl=-1)
+    dsmom             = dsmom.mean(dim='time')
+
+    return dsmom, dscobalt_btm, dscobalt_tr
+
+
+if __name__ =='__main__':
+    dsmom, dscobalt_btm, dscobalt_tr = read_variables()
+    dsmom.load()
+    dscobalt_btm.load()
+    dscobalt_tr.load()
