@@ -21,6 +21,7 @@ matplotlib = "*"
 dask       = "*"
 netCDF4    = "*"
 hdf5       = "*"
+bottleneck = "*"
 
 
 [tasks]
