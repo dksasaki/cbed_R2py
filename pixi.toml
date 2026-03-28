@@ -19,5 +19,9 @@ ipython  = "*"
 xarray   = "*"
 matplotlib = "*"
 dask       = "*"
+netCDF4    = "*"
+hdf5       = "*"
+
+
 [tasks]
 setup-r = "Rscript -e \"install.packages(c('ReacTran', 'marelac', 'splines'), repos='https://cloud.r-project.org')\""
