@@ -22,7 +22,7 @@ def julian2npdatetime(ds):
     time = np.array([np.datetime64(i) for i in ds.time.values]).astype('datetime64[ns]')
     return ds.assign_coords(time=time)
 
-def read_mom6cobalt(paths, ftopo, varbs):
+def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None):
     
     assert(paths),"must be a string"
     
@@ -36,14 +36,20 @@ def read_mom6cobalt(paths, ftopo, varbs):
         aux = ds[varbs]
 
         # make sure that cobalt3d, mom63d and mom62d work with this function
-        if 'z_l' in ds:
-            chunck_dict = dict(xh=100, yh=100, time=20, z_l=5)
-        elif 'z_l' in ds:
-            dict(xh=100, yh=100, time=20, zl=5)
+        if chunk_dict is None:
+            if 'z_l' in ds:
+                chunk_dict = dict(xh=100, yh=100, time=20, z_l=5)
+            elif 'z_l' in ds:
+                chunk_dict = dict(xh=100, yh=100, time=20, zl=5)
+            else:
+                chunk_dict = dict(xh=100, yh=100, time=20)
         else:
-            dict(xh=100, yh=100, time=20)
-        
-        datasets.append(aux.chunk(chunck_dict))
+            assert type(chunk_dict) is dict,"chunk_dict must either None or type(dict)"
+            
+            for i in chunk_dict:
+                assert i in ds, f"{i} not found i {path}"
+
+        datasets.append(aux.chunk(**chunk_dict))
 
     dscobalt = xr.concat(datasets,
                    dim='time',
@@ -109,4 +115,6 @@ varbs_cobalt, varbs_mom6 = _variables_model()
 # dscobalt          = read_mom6cobalt(fpath, ftopo, varbs_cobalt)
 
 fpaths_mom6       = osp.join(fpath,'*ocean_daily.nc')
-dsmom             = read_mom6cobalt(fpath, ftopo, varbs_mom6)
+dsmom             = read_mom6cobalt(fpaths_mom6, ftopo, varbs_mom6, chunk_dict={'zl':1})
+dsmom             = dsmom.isel(zl=-1)
+dsmom             = dsmom.mean(dim='time')
