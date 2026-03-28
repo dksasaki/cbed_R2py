@@ -25,4 +25,4 @@ bottleneck = "*"
 
 
 [tasks]
-setup-r = "Rscript -e \"install.packages(c('ReacTran', 'marelac', 'splines'), repos='https://cloud.r-project.org')\""
+setup-r = "Rscript -e \"install.packages(c('ReacTran', 'marelac'), repos='https://cloud.r-project.org')\""
