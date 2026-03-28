@@ -16,5 +16,8 @@ r-desolve = "*"
 r-rootsolve = "*"
 r-readxl = "*"
 ipython  = "*"
+xarray   = "*"
+matplotlib = "*"
+
 [tasks]
 setup-r = "Rscript -e \"install.packages(c('ReacTran', 'marelac', 'splines'), repos='https://cloud.r-project.org')\""
