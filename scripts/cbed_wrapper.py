@@ -52,8 +52,8 @@ def init_worker():
     global r
     import rpy2.robjects as ro
     r = ro.r
-    r('source("src/cbed_R/cbed_v1_func.R")')
-    r('source("scripts/default_CBED_pars.R")')
+    r(f'source("{ROOT_DIR}/src/cbed_R/cbed_v1_func.R")')
+    r(f'source("{ROOT_DIR}/scripts/default_CBED_pars.R")')
 
 
 def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i,j,cont):
