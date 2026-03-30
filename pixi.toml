@@ -22,7 +22,7 @@ dask       = "*"
 netCDF4    = "*"
 hdf5       = "*"
 bottleneck = "*"
-
+pyreadr    = "*"
 
 [tasks]
 setup-r = "Rscript -e \"install.packages(c('ReacTran', 'marelac'), repos='https://cloud.r-project.org')\""
