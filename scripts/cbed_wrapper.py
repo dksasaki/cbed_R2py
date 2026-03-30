@@ -182,9 +182,9 @@ if __name__ == '__main__':
     dscob2.load()
     dsmom.load()
 
-    dsmom_a  =dsmom.isel(xh=slice(-4,None), yh=slice(0,4))
-    dscob2_a =dscob2.isel(xh=slice(-4,None), yh=slice(0,4))
-    dscob_a =dscob.isel(xh=slice(-4,None), yh=slice(0,4))
+    dsmom_a  =dsmom#.isel(xh=slice(-4,None), yh=slice(0,4))
+    dscob2_a =dscob2#.isel(xh=slice(-4,None), yh=slice(0,4))
+    dscob_a =dscob#.isel(xh=slice(-4,None), yh=slice(0,4))
   
     
     # del(dscob, dscob2, dsmom)
@@ -236,3 +236,4 @@ if __name__ == '__main__':
     )
 
     ds_3d.to_netcdf(osp.join(ROOT_DIR,'data/cache/cbed_mom6.nc'))
+    
