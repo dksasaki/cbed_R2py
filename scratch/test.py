@@ -117,43 +117,56 @@ def _variables_model():
     varbs_cobalt_tr = ['nh4']
     return varbs_cobalt_btm, varbs_mom6, varbs_cobalt_tr
 
-def read_variables():
-    f = lambda x: sorted(glob.glob(x))
+def read_variables(root_dir):
 
-    fpath = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw'
-    ftopo = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
+    FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw'
+    FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
+    CACHE_DIR = osp.join(root_dir, 'data/cache/scratch_test')
+    os.makedirs(CACHE_DIR, exist_ok=True)
 
     varbs_cobalt_btm, varbs_mom6, varbs_cobalt_tr = _variables_model()
 
+    def _cached(fsave, fn):
+        if glob.glob(fsave):
+            return xr.open_dataset(fsave)
+        return fn(fsave)
 
-    fpaths_cobalt     = osp.join(fpath,'*cobalt_btm.nc')
-    dscobalt_btm          = read_mom6cobalt(fpaths_cobalt, ftopo, varbs_cobalt_btm)
+    def _persist_and_save(ds, fsave):
+        ds1 = ds.persist()
+        progress(ds1)
+        ds1.to_netcdf(fsave)
+        return ds1
 
-    fpaths_cobalt     = osp.join(fpath,'*cobalt_tracers.nc')
-    dscobalt_tr       = read_mom6cobalt(fpaths_cobalt, ftopo, varbs_cobalt_tr, chunk_dict={'z_l':52})
-    dscobalt_tr       = dscobalt_tr.ffill(dim='z_l') \
-                                .bfill(dim='z_l')
-    dscobalt_tr       = dscobalt_tr.isel(z_l=-1)
+    def _read_cobalt_btm(fsave):
+        fpaths = osp.join(FPATH, '*cobalt_btm.nc')
+        ds = read_mom6cobalt(fpaths, FTOPO, varbs_cobalt_btm)
+        return _persist_and_save(ds, fsave)
 
-    fpaths_mom6       = osp.join(fpath,'*ocean_daily.nc')
-    dsmom             = read_mom6cobalt(fpaths_mom6, ftopo, varbs_mom6, chunk_dict={'zl':1})
-    dsmom             = dsmom.isel(zl=-1)
-    dsmom             = dsmom.mean(dim='time')
+    def _read_cobalt_tr(fsave):
+        fpaths = osp.join(FPATH, '*cobalt_tracers.nc')
+        ds = read_mom6cobalt(fpaths, FTOPO, varbs_cobalt_tr, chunk_dict={'z_l': 52})
+        ds = ds.ffill(dim='z_l').bfill(dim='z_l').isel(z_l=-1)
+        return _persist_and_save(ds, fsave)
+
+    def _read_mom(fsave):
+        fpaths = osp.join(FPATH, '*ocean_daily.nc')
+        ds = read_mom6cobalt(fpaths, FTOPO, varbs_mom6, chunk_dict={'zl': 1})
+        ds = ds.isel(zl=-1).mean(dim='time')
+        return _persist_and_save(ds, fsave)
+
+    dscobalt_btm = _cached(osp.join(CACHE_DIR, 'cobalt_btm.nc'), _read_cobalt_btm)
+    dscobalt_tr  = _cached(osp.join(CACHE_DIR, 'cobalt_tr.nc'),  _read_cobalt_tr)
+    dsmom        = _cached(osp.join(CACHE_DIR, 'mom6.nc'),        _read_mom)
 
     return dsmom, dscobalt_btm, dscobalt_tr
 
-
 if __name__ =='__main__':
-    dsmom, dscobalt_btm, dscobalt_tr = read_variables()
-    # dsmom.load()
-    # dscobalt_btm.load()
-    # dscobalt_tr.load()
+    root_dir = '/projects/schultz/d.sasaki/km_scale_model/' + \
+                'mom6cobalt_25th/20240723_zstar/tasks/' + \
+                '202603_cbed_R2py'
+    os.chdir(root_dir)
 
-    dscobalt_btm1 = dscobalt_btm.persist()
-    progress(dscobalt_btm1)
+    dsmom, dscobalt_btm, dscobalt_tr = read_variables(root_dir)
 
-    dscobalt_tr1 = dscobalt_tr.persist()
-    progress(dscobalt_tr)
 
-    dsmom1 = dsmom.persist()
-    progress(dsmom1)
+
