@@ -209,7 +209,7 @@ if __name__ == '__main__':
             for cont, (i, j) in enumerate(zip(im.ravel(), jm.ravel()))]
 
     with Pool(processes=16, initializer=init_worker) as pool:
-        %time results = pool.map(run_point, args)
+        results = pool.map(run_point, args)
 
     ds = dict(results)
 
