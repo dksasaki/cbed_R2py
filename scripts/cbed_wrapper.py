@@ -155,6 +155,28 @@ def run_point(args):
         return cont, empty_ds(cont)
 
 
+def get_chunk(chunk, dsmom, dscob, dscob2, ny, nx):
+    if chunk == 1:
+        xh_slice, yh_slice = slice(0, 200), slice(0, 200)
+        ix, iy = np.arange(0, 200), np.arange(0, 200)
+    elif chunk == 2:
+        xh_slice, yh_slice = slice(0, 200), slice(200, None)
+        ix, iy = np.arange(0, 200), np.arange(200, ny)
+    elif chunk == 3:
+        xh_slice, yh_slice = slice(200, None), slice(0, 200)
+        ix, iy = np.arange(200, nx), np.arange(0, 200)
+    elif chunk == 4:
+        xh_slice, yh_slice = slice(200, None), slice(200, None)
+        ix, iy = np.arange(200, nx), np.arange(200, ny)
+    else:
+        return dsmom, dscob, dscob2, np.arange(nx), np.arange(ny)
+
+    dsmom_a  = dsmom.isel(xh=xh_slice, yh=yh_slice)
+    dscob_a  = dscob.isel(xh=xh_slice, yh=yh_slice)
+    dscob2_a = dscob2.isel(xh=xh_slice, yh=yh_slice)
+
+    return dsmom_a, dscob_a, dscob2_a, ix, iy
+
 if __name__ == '__main__':
     ROOT_DIR = '/projects/schultz/d.sasaki/km_scale_model/' + \
                 'mom6cobalt_25th/20240723_zstar/tasks/' + \
@@ -164,6 +186,7 @@ if __name__ == '__main__':
     CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
     nproc = int(sys.argv[1])
+    chunk = int(sys.argv[2])
 
     sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
     import model_reader as mr
@@ -183,19 +206,21 @@ if __name__ == '__main__':
     dscob.load()
     dscob2.load()
     dsmom.load()
+    ny, nx = dscob['btm_o2'].values.shape
+    dsmom_a, dscob_a, dscob2_a, ix, iy = get_chunk(chunk,
+                                                   dsmom,
+                                                   dscob,
+                                                   dscob2,
+                                                   ny,
+                                                   nx)
 
-    dsmom_a  =dsmom#.isel(xh=slice(-4,None), yh=slice(0,4))
-    dscob2_a =dscob2#.isel(xh=slice(-4,None), yh=slice(0,4))
-    dscob_a =dscob#.isel(xh=slice(-4,None), yh=slice(0,4))
-  
-    
+        
     # del(dscob, dscob2, dsmom)
     jvec, ivec = np.where(~np.isnan(dscob_a['btm_o2'].values))
     valid_points = set(zip(ivec, jvec))
 
 
-    ny, nx = dscob_a['btm_o2'].values.shape
-    jm, im = np.meshgrid(np.arange(ny), np.arange(nx), indexing='ij')
+    jm, im = np.meshgrid(iy, ix, indexing='ij')
 
     # ds = {}
     # cont = 0
@@ -237,5 +262,5 @@ if __name__ == '__main__':
         }
     )
 
-    ds_3d.to_netcdf(osp.join(ROOT_DIR,'data/cache/cbed_mom6.nc'))
+    ds_3d.to_netcdf(osp.join(ROOT_DIR,'data/cache/cbed_mom6_{chunk}.nc'))
     
