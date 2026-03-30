@@ -11,6 +11,7 @@ import pandas as pd
 from multiprocessing import Pool
 
 
+
 def pars2r(pars_dict):
     """Convert a Python dict to an R named list."""
     r_list = ro.ListVector(
@@ -160,6 +161,7 @@ if __name__ == '__main__':
     FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
     CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
+    nproc = int(sys.argv[1])
 
     sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
     import model_reader as mr
@@ -208,7 +210,7 @@ if __name__ == '__main__':
     args = [(cont, i, j, valid_points)
             for cont, (i, j) in enumerate(zip(im.ravel(), jm.ravel()))]
 
-    with Pool(processes=16, initializer=init_worker) as pool:
+    with Pool(processes=nproc, initializer=init_worker) as pool:
         results = pool.map(run_point, args)
 
     ds = dict(results)
