@@ -4,11 +4,13 @@ import os.path as osp
 import glob
 import xarray as xr
 import numpy as np
-
-os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
-
+import logging
 from dask.distributed import Client, LocalCluster
 from dask.distributed import progress, wait
+
+log = logging.getLogger(__name__)
+
+os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
 if 'client' not in globals():
     cluster = LocalCluster(n_workers=16,
@@ -117,7 +119,7 @@ def _variables_model():
     varbs_cobalt_tr = ['nh4']
     return varbs_cobalt_btm, varbs_mom6, varbs_cobalt_tr
 
-def read_variables(root_dir: str, fpath: str, ftopo: str) -> tuple:
+def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tuple:
     """
     Load and cache MOM6/COBALT model output datasets — bottom COBALT 
     tracers, surface COBALT tracers, and MOM6 ocean daily fields — from raw 
@@ -138,6 +140,8 @@ def read_variables(root_dir: str, fpath: str, ftopo: str) -> tuple:
         Directory containing raw model NetCDF files.
     ftopo : str
         Path to ocean topography file.
+    cache_dir: str
+        Path to cache
 
     Returns
     -------
@@ -154,7 +158,6 @@ def read_variables(root_dir: str, fpath: str, ftopo: str) -> tuple:
     if not osp.exists(ftopo):
         raise FileNotFoundError(f"Topography file not found: {ftopo}")
 
-    CACHE_DIR = osp.join(root_dir, 'data/cache/scratch_test')
     os.makedirs(CACHE_DIR, exist_ok=True)
     log.info(f"Cache directory: {CACHE_DIR}")
 
@@ -209,9 +212,11 @@ if __name__ =='__main__':
                 '202603_cbed_R2py'
     FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw'
     FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
+    CACHE_DIR = osp.join(root_dir, 'data/cache/scratch_test')
+
     os.chdir(ROOT_DIR)
 
-    ds_dict = read_variables(ROOT_DIR, FPATH, FTOPO)
+    ds_dict = read_variables(ROOT_DIR, FPATH, FTOPO, CACHE_DIR)
 
 
 
