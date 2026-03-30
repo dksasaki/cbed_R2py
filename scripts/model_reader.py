@@ -119,7 +119,16 @@ def _variables_model():
 
 def read_variables(root_dir: str, fpath: str, ftopo: str) -> tuple:
     """
-    Load and cache MOM6/COBALT model output datasets.
+    Load and cache MOM6/COBALT model output datasets — bottom COBALT 
+    tracers, surface COBALT tracers, and MOM6 ocean daily fields — from raw 
+    NetCDF files into a local cache directory. On first run, each dataset is 
+    computed via Dask, persisted in memory, and saved to disk; on subsequent 
+    runs the cached files are loaded directly, skipping the expensive 
+    computation. Returns the three datasets as a tuple.
+
+    Variables in each dataset are controlled by `_variables_model()`. You
+    can call it from your script directly for explicit information.
+
 
     Parameters
     ----------
@@ -194,7 +203,7 @@ def read_variables(root_dir: str, fpath: str, ftopo: str) -> tuple:
     return ds_dict
 
 if __name__ =='__main__':
-    
+
     ROOT_DIR = '/projects/schultz/d.sasaki/km_scale_model/' + \
                 'mom6cobalt_25th/20240723_zstar/tasks/' + \
                 '202603_cbed_R2py'
