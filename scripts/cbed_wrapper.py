@@ -57,6 +57,8 @@ def init_worker():
 
 
 def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i,j,cont):
+    print(f"Running point i={i} j={j} cont={cont}", flush=True)
+
     dsmom_b = dsmom_a.isel(xh=i, yh=j)
     dscob2_b = dscob2_a.isel(xh=i, yh=j)
     dscob_b = dscob_a.isel(xh=i, yh=j)
