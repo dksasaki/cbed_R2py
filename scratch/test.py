@@ -41,7 +41,7 @@ def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None):
     datasets = []
     for path in paths:  # we use a for instead of mfdataset to avoid a memory issue
         print(path)
-        ds = xr.open_dataset(path, lock=False)
+        ds = xr.open_dataset(path, lock=False, decode_timedelta=True)
 
         _assert_variables(ds, varbs, path)
 
@@ -129,9 +129,8 @@ def read_variables():
     fpaths_cobalt     = osp.join(fpath,'*cobalt_btm.nc')
     dscobalt_btm          = read_mom6cobalt(fpaths_cobalt, ftopo, varbs_cobalt_btm)
 
-
     fpaths_cobalt     = osp.join(fpath,'*cobalt_tracers.nc')
-    dscobalt_tr       = read_mom6cobalt(fpaths_cobalt, ftopo, varbs_cobalt_tr, chunk_dict={'z_l':1})
+    dscobalt_tr       = read_mom6cobalt(fpaths_cobalt, ftopo, varbs_cobalt_tr, chunk_dict={'z_l':52})
     dscobalt_tr       = dscobalt_tr.ffill(dim='z_l') \
                                 .bfill(dim='z_l')
     dscobalt_tr       = dscobalt_tr.isel(z_l=-1)
@@ -146,6 +145,15 @@ def read_variables():
 
 if __name__ =='__main__':
     dsmom, dscobalt_btm, dscobalt_tr = read_variables()
-    dsmom.load()
-    dscobalt_btm.load()
-    dscobalt_tr.load()
+    # dsmom.load()
+    # dscobalt_btm.load()
+    # dscobalt_tr.load()
+
+    dscobalt_btm1 = dscobalt_btm.persist()
+    progress(dscobalt_btm1)
+
+    dscobalt_tr1 = dscobalt_tr.persist()
+    progress(dscobalt_tr)
+
+    dsmom1 = dsmom.persist()
+    progress(dsmom1)
