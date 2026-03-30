@@ -262,5 +262,5 @@ if __name__ == '__main__':
         }
     )
 
-    ds_3d.to_netcdf(osp.join(ROOT_DIR,'data/cache/cbed_mom6_{chunk}.nc'))
+    ds_3d.to_netcdf(osp.join(ROOT_DIR,f'data/cache/cbed_mom6_{chunk}.nc'))
     
