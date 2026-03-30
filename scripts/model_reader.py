@@ -158,8 +158,8 @@ def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tupl
     if not osp.exists(ftopo):
         raise FileNotFoundError(f"Topography file not found: {ftopo}")
 
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    log.info(f"Cache directory: {CACHE_DIR}")
+    os.makedirs(cache_dir, exist_ok=True)
+    log.info(f"Cache directory: {cache_dir}")
 
     varbs_cobalt_btm, varbs_mom6, varbs_cobalt_tr = _variables_model()
 
@@ -195,9 +195,9 @@ def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tupl
         ds = ds.isel(zl=-1).mean(dim='time')
         return _persist_and_save(ds, fsave)
 
-    dscobalt_btm = _cached(osp.join(CACHE_DIR, 'cobalt_btm.nc'), _read_cobalt_btm)
-    dscobalt_tr  = _cached(osp.join(CACHE_DIR, 'cobalt_tr.nc'),  _read_cobalt_tr)
-    dsmom        = _cached(osp.join(CACHE_DIR, 'mom6.nc'),        _read_mom)
+    dscobalt_btm = _cached(osp.join(cache_dir, 'cobalt_btm.nc'), _read_cobalt_btm)
+    dscobalt_tr  = _cached(osp.join(cache_dir, 'cobalt_tr.nc'),  _read_cobalt_tr)
+    dsmom        = _cached(osp.join(cache_dir, 'mom6.nc'),        _read_mom)
 
     ds_dict = {}
     ds_dict['dsmom']        = dsmom
