@@ -36,9 +36,9 @@ get_default_pars <- function() {
     L                            = 20,
     N                            = 20,
     ps                           = 2.5,
-    # f.OM1                        = NA,           # missing - default in cbed_v1_func.R unknown
-    # f.OM2                        = NA,           # missing - default in cbed_v1_func.R unknown
-    # f.OM3                        = NA,           # missing - default in cbed_v1_func.R unknown
+    f.OM1                        = 0.7,           # missing - default in cbed_v1_func.R unknown
+    f.OM2                        = 0.2,           # missing - default in cbed_v1_func.R unknown
+    f.OM3                        = 0.1,           # missing - default in cbed_v1_func.R unknown
     # k1                           = NA,           # missing - only in manual_control
     # k2                           = NA,           # missing - only in manual_control
     # k3                           = NA,           # missing - only in manual_control
