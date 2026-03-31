@@ -127,7 +127,11 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i,j,cont):
     _default_pars["S"]       = max([0, btm_salt])
     _default_pars["depth"]   = max([0, 200])
 
-    print(f'{i} {j}',', '.join(f"{k}={v}" for k, v in _default_pars.items()), flush=True)
+    pars_items = ["J.OM", "O2.w", "w", "temp", "por.0",
+                  "por.inf", "NO3.w", "NH4.w", "DIC",
+                  "TAlk.w", "S", "depth"]
+    
+    print(f'{i} {j}',', '.join(f"{k}={v}" for k, v in pars_items), flush=True)
 
 
     # _default_pars
