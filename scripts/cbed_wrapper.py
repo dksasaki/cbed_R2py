@@ -171,8 +171,11 @@ def get_chunk(chunk, dsmom, dscob, dscob2, ny, nx):
     elif chunk == 4:
         xh_slice, yh_slice = slice(200, None), slice(200, None)
         ix, iy = np.arange(200, nx), np.arange(200, ny)
-    else:
+    elif chunk ==0:
         return dsmom, dscob, dscob2, np.arange(nx), np.arange(ny)
+    elif chunk == -1
+        xh_slice, yh_slice = slice(-2, None), slice(0,2)
+        ix, iy = np.arange(-2, nx), np.arange(0,2)
 
     dsmom_a  = dsmom.isel(xh=xh_slice, yh=yh_slice)
     dscob_a  = dscob.isel(xh=xh_slice, yh=yh_slice)
