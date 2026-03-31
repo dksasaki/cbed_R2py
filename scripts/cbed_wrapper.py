@@ -151,37 +151,45 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i,j,cont):
 
 
 def run_point(args):
-    cont, i, j, valid_points = args
-    if (i, j) in valid_points:
+    cont, iv, jv, i,j, valid_points = args
+    if (jv,iv) in valid_points:
         return cont, cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i, j, cont)
     else:
+        print(i,j,'land')
         return cont, empty_ds(cont)
 
 
 def get_chunk(chunk, dsmom, dscob, dscob2, ny, nx):
     if chunk == 1:
         xh_slice, yh_slice = slice(0, 200), slice(0, 200)
-        ix, iy = np.arange(0, 200), np.arange(0, 200)
+        ivx, ivy = np.arange(0, 200), np.arange(0, 200)
+        ix, iy   = np.arange(0, 200), np.arange(0, 200)
     elif chunk == 2:
         xh_slice, yh_slice = slice(0, 200), slice(200, None)
-        ix, iy = np.arange(0, 200), np.arange(200, ny)
+        ivx, ivy = np.arange(0, 200), np.arange(200, ny)
+        ix, iy   = np.arange(0, 200), np.arange(200, ny)-200
     elif chunk == 3:
         xh_slice, yh_slice = slice(200, None), slice(0, 200)
-        ix, iy = np.arange(200, nx), np.arange(0, 200)
+        ivx, ivy = np.arange(200, nx), np.arange(0, 200)
+        ix, iy   = np.arange(200, nx) - 200, np.arange(200, ny)
     elif chunk == 4:
         xh_slice, yh_slice = slice(200, None), slice(200, None)
-        ix, iy = np.arange(200, nx), np.arange(200, ny)
+        ivx, ivy = np.arange(200, nx), np.arange(200, ny)
+        ix, iy   = np.arange(200, nx) - 200, np.arange(200, ny)-200
+
     elif chunk ==0:
         return dsmom, dscob, dscob2, np.arange(nx), np.arange(ny)
     elif chunk == -1:
         xh_slice, yh_slice = slice(-2, None), slice(0,2)
-        ix, iy = np.arange(-2, nx), np.arange(0,2)
+        ivx, ivy = np.arange(nx-2,nx), np.arange(0,2)
+        ix, iy   = np.arange(2), np.arange(2)
+
 
     dsmom_a  = dsmom.isel(xh=xh_slice, yh=yh_slice)
     dscob_a  = dscob.isel(xh=xh_slice, yh=yh_slice)
     dscob2_a = dscob2.isel(xh=xh_slice, yh=yh_slice)
 
-    return dsmom_a, dscob_a, dscob2_a, ix, iy
+    return dsmom_a, dscob_a, dscob2_a, ivx, ivy, ix, iy
 
 if __name__ == '__main__':
     ROOT_DIR = '/projects/schultz/d.sasaki/km_scale_model/' + \
@@ -213,7 +221,8 @@ if __name__ == '__main__':
     dscob2.load()
     dsmom.load()
     ny, nx = dscob['btm_o2'].values.shape
-    dsmom_a, dscob_a, dscob2_a, ix, iy = get_chunk(chunk,
+
+    dsmom_a, dscob_a, dscob2_a, ivx, ivy, ix, iy = get_chunk(chunk,
                                                    dsmom,
                                                    dscob,
                                                    dscob2,
@@ -223,11 +232,21 @@ if __name__ == '__main__':
         
     # del(dscob, dscob2, dsmom)
     jvec, ivec = np.where(~np.isnan(dscob_a['btm_o2'].values))
-    valid_points = set(zip(ivec, jvec))
 
+    ivec_valid = ivx[ivec]
+    jvec_valid = ivy[ivec]
+
+    jvecm, ivecm = np.meshgrid(ivec_valid, jvec_valid, indexing='ij')
+
+    valid_points = set(zip(ivecm.ravel(), jvecm.ravel()))
+
+    valid_points = set(list(valid_points)[:3])
+
+    jvm, ivm = np.meshgrid(ivy, ivx, indexing='ij')
 
     jm, im = np.meshgrid(iy, ix, indexing='ij')
 
+    # jm, im = np.meshgrid(np.arange(, ix, indexing='ij')
     # ds = {}
     # cont = 0
     # for i,j in zip(im.ravel(), jm.ravel()):
@@ -240,8 +259,9 @@ if __name__ == '__main__':
     #     cont += 1
 
     # -- parallel implementation --
-    args = [(cont, i, j, valid_points)
-            for cont, (i, j) in enumerate(zip(im.ravel(), jm.ravel()))]
+    args = [(cont, iv, jv, i, j, valid_points)
+            for cont, (iv, jv, i, j) in enumerate(zip(ivm.ravel(), jvm.ravel(),
+                                              im.ravel(), jm.ravel()))]
 
     with Pool(processes=nproc, initializer=init_worker) as pool:
         results = pool.map(run_point, args)
@@ -259,12 +279,12 @@ if __name__ == '__main__':
     # reshape each variable into (level_0, level_1, level_2) = (20, 2, 2)
     ds_3d = xr.Dataset(
         {name: (["level_0", "level_1", "level_2"],
-                combined[name].values.reshape(20, ny, nx))
+                combined[name].values.reshape(20, iy.size, ix.size))
         for name in combined.data_vars},
         coords={
             "level_0": combined.level_0.values,
-            "level_1": np.arange(ny),
-            "level_2": np.arange(nx),
+            "level_1": iy,
+            "level_2": ix
         }
     )
 
