@@ -144,8 +144,12 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i,j,cont):
     """)
 
     ro.globalenv["py_pars"] = r_pars_updated
-    r_out_ss = r("cbed_model(py_pars)")  # running the model with py_pars
-
+    try:
+        r_out_ss = r("cbed_model(py_pars)")
+    except Exception as e:
+        print(f"FAILED i={i} j={j} cont={cont}", flush=True)
+        print(f"pars: {', '.join(f'{k}={v}' for k,v in _default_pars.items())}", flush=True)
+        return empty_ds(i, j)
     # names were obtained from the cbed code
     names = ["OM1","OM2","OM3","O2","NH4","NO3", "ODU","DIC","TAlk"]
     aux = r2dict(r_out_ss)['y']
