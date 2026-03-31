@@ -235,21 +235,14 @@ if __name__ == '__main__':
                                                    nx)
 
         
-    # del(dscob, dscob2, dsmom)
+    # identifying indices with land points
     jvec, ivec = np.where(~np.isnan(dscob_a['btm_o2'].values))
-
     ivec_valid = ivx[ivec]
     jvec_valid = ivy[ivec]
-
     jvecm, ivecm = np.meshgrid(ivec_valid, jvec_valid, indexing='ij')
-
     valid_points = set(zip(ivecm.ravel(), jvecm.ravel()))
-
-    # valid_points = set(list(valid_points)[:3])
-
-    jvm, ivm = np.meshgrid(ivy, ivx, indexing='ij')
-
-    jm, im = np.meshgrid(iy, ix, indexing='ij')
+    jvm, ivm = np.meshgrid(ivy, ivx, indexing='ij')  # valid-indices family
+    jm, im   = np.meshgrid(iy, ix, indexing='ij')    # all-indices family
 
     # jm, im = np.meshgrid(np.arange(, ix, indexing='ij')
     # ds = {}
