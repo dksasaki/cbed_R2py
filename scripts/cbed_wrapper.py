@@ -229,7 +229,7 @@ if __name__ == '__main__':
     dscob.load()
     dscob2.load()
     dsmom.load()
-    print(f"variables loaded: {list(ds_dict.keys())}", flush=True)
+    print(f"models loaded: {list(ds_dict.keys())}", flush=True)
 
     ny, nx = dscob['btm_o2'].values.shape
     print(f"grid shape: ny={ny} nx={nx}", flush=True)
