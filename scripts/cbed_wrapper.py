@@ -9,6 +9,7 @@ import sys
 import xarray as xr
 import pandas as pd
 from multiprocessing import Pool
+import logging
 
 
 
@@ -210,6 +211,7 @@ if __name__ == '__main__':
     nproc = int(sys.argv[1])
     chunk = int(sys.argv[2])
 
+
     sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
     import model_reader as mr
 
@@ -217,10 +219,9 @@ if __name__ == '__main__':
     script_path = osp.join(ROOT_DIR,'src/cbed_R/cbed_v1_func.R')
 
     ds_dict = mr.read_variables(ROOT_DIR,FPATH,FTOPO, CACHE_DIR) 
-    print(ds_dict.keys())
+    print(ds_dict.keys(), flush=True)
 
-
-
+    print("reading datasets")
     dscob  = ds_dict['dscobalt_btm'].mean(dim='time')
     dscob2 = ds_dict['dscobalt_tr'].mean(dim='time')
     dsmom  = ds_dict['dsmom']
@@ -228,7 +229,10 @@ if __name__ == '__main__':
     dscob.load()
     dscob2.load()
     dsmom.load()
+    print(f"variables loaded: {list(ds_dict.keys())}", flush=True)
+
     ny, nx = dscob['btm_o2'].values.shape
+    print(f"grid shape: ny={ny} nx={nx}", flush=True)
 
     dsmom_a, dscob_a, dscob2_a, ivx, ivy, ix, iy = get_chunk(chunk,
                                                    dsmom,
@@ -237,7 +241,8 @@ if __name__ == '__main__':
                                                    ny,
                                                    nx)
 
-        
+    print(f"chunk={chunk} ix={ix[[0,-1]]} iy={iy[[0,-1]]}", flush=True)
+
     # identifying indices with land points
     jvec, ivec = np.where(~np.isnan(dscob_a['btm_o2'].values))
     ivec_valid = ivx[ivec]
@@ -263,7 +268,8 @@ if __name__ == '__main__':
     args = [(cont, iv, jv, i, j, valid_points)
             for cont, (iv, jv, i, j) in enumerate(zip(ivm.ravel(), jvm.ravel(),
                                               im.ravel(), jm.ravel()))]
-
+    
+    print(f"starting pool: nproc={nproc}", flush=True)
     with Pool(processes=nproc, initializer=init_worker, maxtasksperchild=20) as pool:
         results = pool.map(run_point, args)
 
