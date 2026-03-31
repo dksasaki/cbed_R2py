@@ -38,6 +38,9 @@ def r2dict(varbs):
     return result 
 
 def empty_ds(i):
+
+    names=("OM1","OM2","OM3","O2","NH4","NO3", "ODU","DIC","TAlk")
+
     ds_empty = xr.Dataset(
         {name: (["level_0", "level_1"], np.full((20, 1), np.nan))
         for name in names},
