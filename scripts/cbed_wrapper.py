@@ -173,7 +173,7 @@ def get_chunk(chunk, dsmom, dscob, dscob2, ny, nx):
         ix, iy = np.arange(200, nx), np.arange(200, ny)
     elif chunk ==0:
         return dsmom, dscob, dscob2, np.arange(nx), np.arange(ny)
-    elif chunk == -1
+    elif chunk == -1:
         xh_slice, yh_slice = slice(-2, None), slice(0,2)
         ix, iy = np.arange(-2, nx), np.arange(0,2)
 
@@ -191,8 +191,8 @@ if __name__ == '__main__':
     FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
     CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
-    nproc = int(sys.argv[1])
-    chunk = int(sys.argv[2])
+    nproc = 4#int(sys.argv[1])
+    chunk = -1#int(sys.argv[2])
 
     sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
     import model_reader as mr
