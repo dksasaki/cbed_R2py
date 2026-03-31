@@ -240,7 +240,7 @@ if __name__ == '__main__':
 
     valid_points = set(zip(ivecm.ravel(), jvecm.ravel()))
 
-    valid_points = set(list(valid_points)[:3])
+    # valid_points = set(list(valid_points)[:3])
 
     jvm, ivm = np.meshgrid(ivy, ivx, indexing='ij')
 
