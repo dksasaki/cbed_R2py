@@ -241,7 +241,7 @@ if __name__ == '__main__':
     # identifying indices with land points
     jvec, ivec = np.where(~np.isnan(dscob_a['btm_o2'].values))
     ivec_valid = ivx[ivec]
-    jvec_valid = ivy[ivec]
+    jvec_valid = ivy[jvec]
     jvecm, ivecm = np.meshgrid(ivec_valid, jvec_valid, indexing='ij')
     valid_points = set(zip(ivecm.ravel(), jvecm.ravel()))
     jvm, ivm = np.meshgrid(ivy, ivx, indexing='ij')  # valid-indices family
