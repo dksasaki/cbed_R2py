@@ -131,7 +131,7 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i,j,cont):
                   "por.inf", "NO3.w", "NH4.w", "DIC",
                   "TAlk.w", "S", "depth"]
     
-    print(f'{i} {j}',', '.join(f"{k}={v}" for k, v in pars_items), flush=True)
+    print(f'{i} {j}',', '.join(f"{k}={_default_pars[k]}" for k in pars_items), flush=True)
 
 
     # _default_pars
@@ -205,7 +205,7 @@ if __name__ == '__main__':
     CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
     nproc = int(sys.argv[1])
-    chunk = int(sys.argv[2])
+    chunk = #int(sys.argv[2])
 
     sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
     import model_reader as mr
@@ -268,7 +268,7 @@ if __name__ == '__main__':
             for cont, (iv, jv, i, j) in enumerate(zip(ivm.ravel(), jvm.ravel(),
                                               im.ravel(), jm.ravel()))]
 
-    with Pool(processes=nproc, initializer=init_worker) as pool:
+    with Pool(processes=nproc, initializer=init_worker, maxtasksperchild=20) as pool:
         results = pool.map(run_point, args)
 
     ds = dict(results)
