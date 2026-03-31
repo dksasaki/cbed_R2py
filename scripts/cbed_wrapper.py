@@ -199,8 +199,8 @@ if __name__ == '__main__':
     FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
     CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
-    nproc = 4#int(sys.argv[1])
-    chunk = -1#int(sys.argv[2])
+    nproc = int(sys.argv[1])
+    chunk = int(sys.argv[2])
 
     sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
     import model_reader as mr
