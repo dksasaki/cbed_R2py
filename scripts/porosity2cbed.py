@@ -6,12 +6,6 @@ import xesmf as xe
 import glob
 
 # FGRD = '/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/seafloor_porosity.nc'
-FGRD = '/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd'
-
-ROOTDIR   = '/projects/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zstar/tasks/202603_cbed_R2py'
-FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc'
-FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
-FOUT = osp.join(ROOTDIR,'data/cache/porosity_neus25.nc')
 
 def porosity_file(fout=FOUT, save=False, usecache=False):
     if usecache:
@@ -54,6 +48,16 @@ def porosity_file(fout=FOUT, save=False, usecache=False):
     if save:
         dsout.to_netcdf(fout)
 
+    return dsout
+
+def porosity_main(save=False, usecache=True):
+    FGRD = '/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd'
+
+    ROOTDIR   = '/projects/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zstar/tasks/202603_cbed_R2py'
+    FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc'
+    FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
+    FOUT = osp.join(ROOTDIR,'data/cache/porosity_neus25.nc')
+    dsout = porosity_file(save=save, usecache=usecache)
     return dsout
 
 if __name__ == '__main__':
