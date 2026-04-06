@@ -10,6 +10,7 @@ import xarray as xr
 import pandas as pd
 from multiprocessing import Pool
 import logging
+from porosity2cbed import porosity_main
 
 
 
@@ -60,12 +61,13 @@ def init_worker():
     r(f'source("{ROOT_DIR}/scripts/default_CBED_pars.R")')
 
 
-def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i,j,cont):
+def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont):
     print(f"Running point i={i} j={j} cont={cont}", flush=True)
 
     dsmom_b = dsmom_a.isel(xh=i, yh=j)
     dscob2_b = dscob2_a.isel(xh=i, yh=j)
     dscob_b = dscob_a.isel(xh=i, yh=j)
+    dsporo_b = dsporo_a.isel(xh=i, yh=j)
 
     ocean_depth = xr.open_dataset(FTOPO)
     btm_temp = float(dsmom_b['temp'].values)
@@ -103,7 +105,7 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i,j,cont):
         fntot * 6.625 * 22.4 / 0.9
         ) / 1e4 * 60*60*24*365  # cm/yr
 
-
+    porosity = dsporo_b.values
 
     # source = lambda x: f"source(\"{x}\")"
     # r = ro.r
@@ -119,8 +121,8 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i,j,cont):
     _default_pars["O2.w"]    = max([0, btm_O2])   * 1e3
     _default_pars["w"]       = max([0, 0.0359])
     _default_pars["temp"]    = max([0, btm_temp])
-    _default_pars["por.0"]   = max([0, 0.8111])
-    _default_pars["por.inf"] = max([0, 0.8111])
+    _default_pars["por.0"]   = max([0, porosity])
+    _default_pars["por.inf"] = max([0, porosity])
     _default_pars["NO3.w"]   = max([0, btm_no3])  * 1e3
     _default_pars["NH4.w"]   = max([0, btm_nh4])  * 1e3
     _default_pars["DIC"]     = max([0, btm_dic])
@@ -168,7 +170,7 @@ def run_point(args):
         return cont, empty_ds(cont)
 
 
-def get_chunk(chunk, dsmom, dscob, dscob2, ny, nx):
+def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, ny, nx):
     if chunk == 1:
         xh_slice, yh_slice = slice(0, 200), slice(0, 200)
         ivx, ivy = np.arange(0, 200), np.arange(0, 200)
@@ -197,8 +199,9 @@ def get_chunk(chunk, dsmom, dscob, dscob2, ny, nx):
     dsmom_a  = dsmom.isel(xh=xh_slice, yh=yh_slice)
     dscob_a  = dscob.isel(xh=xh_slice, yh=yh_slice)
     dscob2_a = dscob2.isel(xh=xh_slice, yh=yh_slice)
+    dsporo_a = dsporo.isel(xh=xh_slice, yh=yh_slice)
 
-    return dsmom_a, dscob_a, dscob2_a, ivx, ivy, ix, iy
+    return dsmom_a, dscob_a, dscob2_a, dsporo_a, ivx, ivy, ix, iy
 
 if __name__ == '__main__':
     ROOT_DIR = '/projects/schultz/d.sasaki/km_scale_model/' + \
@@ -219,6 +222,7 @@ if __name__ == '__main__':
     script_path = osp.join(ROOT_DIR,'src/cbed_R/cbed_v1_func.R')
 
     ds_dict = mr.read_variables(ROOT_DIR,FPATH,FTOPO, CACHE_DIR) 
+    ds_poro = porosity_main()
     print(ds_dict.keys(), flush=True)
 
     print("reading datasets")
@@ -234,10 +238,11 @@ if __name__ == '__main__':
     ny, nx = dscob['btm_o2'].values.shape
     print(f"grid shape: ny={ny} nx={nx}", flush=True)
 
-    dsmom_a, dscob_a, dscob2_a, ivx, ivy, ix, iy = get_chunk(chunk,
+    dsmom_a, dscob_a, dscob2_a, dsporo_a,ivx, ivy, ix, iy = get_chunk(chunk,
                                                    dsmom,
                                                    dscob,
                                                    dscob2,
+                                                   ds_poro,
                                                    ny,
                                                    nx)
 
