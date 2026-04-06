@@ -51,6 +51,7 @@ def porosity_file(fout=FOUT, save=False, usecache=False):
     return dsout
 
 def porosity_main(save=False, usecache=True):
+    print('WARNING, paths are hardcoded in porosity_main function [in porosity2cbed.py]')
     FGRD = '/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd'
 
     ROOTDIR   = '/projects/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zstar/tasks/202603_cbed_R2py'
