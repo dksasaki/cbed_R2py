@@ -223,6 +223,7 @@ if __name__ == '__main__':
 
     ds_dict = mr.read_variables(ROOT_DIR,FPATH,FTOPO, CACHE_DIR) 
     ds_poro = porosity_main()
+    ds_poro.load()
     print(ds_dict.keys(), flush=True)
 
     print("reading datasets")
