@@ -58,7 +58,7 @@ def porosity_main(save=False, usecache=True):
     FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc'
     FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
     FOUT = osp.join(ROOTDIR,'data/cache/porosity_neus25.nc')
-    dsout = porosity_file(fout=FOUT, save=save, usecache=usecache)
+    dsout = porosity_file(save=save, usecache=usecache)
     return dsout
 
 if __name__ == '__main__':
