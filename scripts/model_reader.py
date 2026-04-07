@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
 if 'client' not in globals():
-    cluster = LocalCluster(n_workers=16,
+    cluster = LocalCluster(n_workers=200,
                            threads_per_worker=1,
                            memory_limit='32GB')
     client = Client(cluster)
