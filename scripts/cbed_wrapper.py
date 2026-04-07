@@ -218,11 +218,11 @@ if __name__ == '__main__':
     CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
 
-    # nproc = int(sys.argv[1])
-    # chunk = int(sys.argv[2])
+    nproc = int(sys.argv[1])
+    chunk = int(sys.argv[2])
 
-    nproc = 200
-    chunk = 2
+    # nproc = 200
+    # chunk = 2
 
 
     sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
