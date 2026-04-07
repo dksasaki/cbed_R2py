@@ -167,6 +167,8 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont, start_r=False):
 
 def run_point(args):
     cont, iv, jv, i,j, valid_points = args
+    # iv, jv are global indices that are comparable with valid_points set
+    # i,j are local indices used to find the point in the dataset through isel
     if (jv,iv) in valid_points:
         return cont, cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, i, j, cont)
     else:
@@ -216,8 +218,11 @@ if __name__ == '__main__':
     CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
 
-    nproc = int(sys.argv[1])
-    chunk = int(sys.argv[2])
+    # nproc = int(sys.argv[1])
+    # chunk = int(sys.argv[2])
+
+    nproc = 200
+    chunk = 2
 
 
     sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
@@ -256,15 +261,32 @@ if __name__ == '__main__':
     print(f"chunk={chunk} ix={ix[[0,-1]]} iy={iy[[0,-1]]}", flush=True)
 
     # identifying indices with land points
-    jvec, ivec = np.where(~np.isnan(dscob_a['btm_o2'].values))  # 
-    valid_points = set(zip(jvec, ivec))  # local indices
-
-    ivec_valid = ivx[ivec]
-    jvec_valid = ivy[jvec]
-
-    jm, im = np.meshgrid(iy, ix, indexing='ij')    # global
-    jvm, ivm = np.meshgrid(ivy, ivx, indexing='ij') # local
+    jivalid = np.where(~np.isnan(dscob_a['btm_o2'].values))  # selecting mask in local index
+    jvm, ivm = np.meshgrid(ivy, ivx, indexing='ij') #  global indices of the subset
     
+    # mapping jivalid onto global indices
+    jvec = jvm[jivalid] 
+    ivec = ivm[jivalid]
+    # local valid water indices (used to identify water points in the loop)
+    valid_points = set(zip(jvec, ivec))  
+
+
+    jm, im = np.meshgrid(iy, ix, indexing='ij')    # local indices
+
+
+    
+    
+
+
+# def run_point(args):
+#     cont, iv, jv, i,j, valid_points = args
+#     if (jv,iv) in valid_points:
+#         return cont, cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, i, j, cont)
+#     else:
+#         print(i,j,'land')
+#         return cont, empty_ds(cont)
+
+
     
 
     # jm, im = np.meshgrid(np.arange(, ix, indexing='ij')
@@ -281,8 +303,10 @@ if __name__ == '__main__':
 
     # -- parallel implementation --
     args = [(cont, iv, jv, i, j, valid_points)
-            for cont, (iv, jv, i, j) in enumerate(zip(ivm.ravel(), jvm.ravel(),
-                                              im.ravel(), jm.ravel()))]
+            for cont, (iv, jv, i, j) in enumerate(zip(ivm.ravel(),  #
+                                                      jvm.ravel(),
+                                                      im.ravel(),
+                                                      jm.ravel()))]
     
     print(f"starting pool: nproc={nproc}", flush=True)
     with Pool(processes=nproc, initializer=init_worker, maxtasksperchild=20) as pool:
