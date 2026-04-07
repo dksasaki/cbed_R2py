@@ -7,11 +7,11 @@ import glob
 
 # FGRD = '/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/seafloor_porosity.nc'
 
-def porosity_file(fout=FOUT, save=False, usecache=False):
+def porosity_file( save=False, usecache=False):
     if usecache:
-        if glob.glob(fout):
+        if glob.glob(FOUT):
             print('Loading cached file.')
-            return xr.open_dataset(fout)
+            return xr.open_dataset(FOUT)
 
     ds1   = mr.read_mom6cobalt(FPATH, FTOPO, varbs=['temp'])
     chunks = dict(x=400, y=400) if FGRD.endswith('.grd') else dict(lon=200, lat=200)
@@ -58,7 +58,7 @@ def porosity_main(save=False, usecache=True):
     FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc'
     FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
     FOUT = osp.join(ROOTDIR,'data/cache/porosity_neus25.nc')
-    dsout = porosity_file(save=save, usecache=usecache)
+    dsout = porosity_file(fout=FOUT, save=save, usecache=usecache)
     return dsout
 
 if __name__ == '__main__':
