@@ -10,7 +10,6 @@ import xarray as xr
 import pandas as pd
 from multiprocessing import Pool
 import logging
-from porosity2cbed import porosity_main
 
 
 
@@ -61,7 +60,11 @@ def init_worker():
     r(f'source("{ROOT_DIR}/scripts/default_CBED_pars.R")')
 
 
-def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont):
+def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont, start_r=False):
+
+    if start_r is False:
+        global r
+
     print(f"Running point i={i} j={j} cont={cont}", flush=True)
 
     dsmom_b = dsmom_a.isel(xh=i, yh=j)
@@ -105,12 +108,13 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont):
         fntot * 6.625 * 22.4 / 0.9
         ) / 1e4 * 60*60*24*365  # cm/yr
 
-    porosity = dsporo_b.values
+    porosity = float(dsporo_b['porosity'].values)
 
-    # source = lambda x: f"source(\"{x}\")"
-    # r = ro.r
-    # r(source(script_path))
-    # r(source('scripts/default_CBED_pars.R'))  # contains get_default_pars function
+    if start_r:
+        source = lambda x: f"source(\"{x}\")"
+        r = ro.r
+        r(source(script_path))
+        r(source('scripts/default_CBED_pars.R'))  # contains get_default_pars function
 
     # set up parameters
     r_pars = r('get_default_pars()')
@@ -164,7 +168,7 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont):
 def run_point(args):
     cont, iv, jv, i,j, valid_points = args
     if (jv,iv) in valid_points:
-        return cont, cbed_wrapped(dsmom_a, dscob_a, dscob2_a, i, j, cont)
+        return cont, cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, i, j, cont)
     else:
         print(i,j,'land')
         return cont, empty_ds(cont)
@@ -217,6 +221,7 @@ if __name__ == '__main__':
 
     sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
     import model_reader as mr
+    from porosity2cbed import porosity_main
 
 
     script_path = osp.join(ROOT_DIR,'src/cbed_R/cbed_v1_func.R')
@@ -250,13 +255,16 @@ if __name__ == '__main__':
     print(f"chunk={chunk} ix={ix[[0,-1]]} iy={iy[[0,-1]]}", flush=True)
 
     # identifying indices with land points
-    jvec, ivec = np.where(~np.isnan(dscob_a['btm_o2'].values))
+    jvec, ivec = np.where(~np.isnan(dscob_a['btm_o2'].values))  # 
+    valid_points = set(zip(ivec, jvec))  # local indices
+
     ivec_valid = ivx[ivec]
     jvec_valid = ivy[jvec]
-    jvecm, ivecm = np.meshgrid(ivec_valid, jvec_valid, indexing='ij')
-    valid_points = set(zip(ivecm.ravel(), jvecm.ravel()))
-    jvm, ivm = np.meshgrid(ivy, ivx, indexing='ij')  # valid-indices family
-    jm, im   = np.meshgrid(iy, ix, indexing='ij')    # all-indices family
+
+    jm, im = np.meshgrid(iy, ix, indexing='ij')    # global
+    jvm, ivm = np.meshgrid(ivy, ivx, indexing='ij') # local
+    
+    
 
     # jm, im = np.meshgrid(np.arange(, ix, indexing='ij')
     # ds = {}
