@@ -83,47 +83,49 @@ def stich_dataset(ds, dict_cbed, n_chunks_x=8, n_chunks_y=1):
     
     return dsout
 
-
-n_chunks_x= int(sys.argv[1]) #8
-n_chunks_y= int(sys.argv[2]) #1
-
-fpath = glob.glob('../data/cache/scratch_test/mom6.nc')  # this is being used as atemplate
-fpaths = sorted(glob.glob('../data/cache/cbed*.nc'))
-
-assert len(fpaths)==n_chunks_x*n_chunks_y, 'check the number of chunked cbed files'
-
-#reading datasets
-dict_cbed = {i:xr.open_dataset(f) for i,f in enumerate(fpaths)}
-ds = xr.open_dataset(fpath[0])
-
-# organizing dimension names
-for k in dict_cbed:
-    dict_cbed[k] = dict_cbed[k].rename(level_0='l',
-                                    level_1='yh',
-                                    level_2='xh')
+if __name__ == '__main__':
 
 
-dsout = stich_dataset(ds,
-                        dict_cbed,
-                        n_chunks_x=n_chunks_x,
-                        n_chunks_y=n_chunks_y)
-# stitching data together
-# dsout = dsout.drop_vars(['x', 'y'])
-# cast variables to float32 with _FillValue=0
-porosity = porosity_main()
+    n_chunks_x= int(sys.argv[1]) #8
+    n_chunks_y= int(sys.argv[2]) #1
 
-dsout['porosity'] = dsout['cbed_om1'][0]
-dsout['porosity'].values = porosity['porosity'].values
-# dsout = dsout.assign_coords(x=ds['x'], y=ds['y'], l=np.arange(20))
+    fpath = glob.glob('../data/cache/scratch_test/mom6.nc')  # this is being used as atemplate
+    fpaths = sorted(glob.glob('../data/cache/cbed*.nc'))
 
-encoding = {v: {'dtype': 'float32', '_FillValue': 0} for v in dsout.data_vars}
-encoding['l'] = {'dtype': 'int64'}
+    assert len(fpaths)==n_chunks_x*n_chunks_y, 'check the number of chunked cbed files'
+
+    #reading datasets
+    dict_cbed = {i:xr.open_dataset(f) for i,f in enumerate(fpaths)}
+    ds = xr.open_dataset(fpath[0])
+
+    # organizing dimension names
+    for k in dict_cbed:
+        dict_cbed[k] = dict_cbed[k].rename(level_0='l',
+                                        level_1='yh',
+                                        level_2='xh')
 
 
-dsout.to_netcdf(
-    '../data/cbed_results.nc',
-    format='NETCDF3_64BIT',
-    engine='netcdf4',
-    encoding=encoding,
-    # unlimited_dims='time'
-)
+    dsout = stich_dataset(ds,
+                            dict_cbed,
+                            n_chunks_x=n_chunks_x,
+                            n_chunks_y=n_chunks_y)
+    # stitching data together
+    # dsout = dsout.drop_vars(['x', 'y'])
+    # cast variables to float32 with _FillValue=0
+    porosity = porosity_main()
+
+    dsout['porosity'] = dsout['cbed_om1'][0]
+    dsout['porosity'].values = porosity['porosity'].values
+    # dsout = dsout.assign_coords(x=ds['x'], y=ds['y'], l=np.arange(20))
+
+    encoding = {v: {'dtype': 'float32', '_FillValue': 0} for v in dsout.data_vars}
+    encoding['l'] = {'dtype': 'int64'}
+
+
+    dsout.to_netcdf(
+        '../data/cbed_results.nc',
+        format='NETCDF3_64BIT',
+        engine='netcdf4',
+        encoding=encoding,
+        # unlimited_dims='time'
+    )
