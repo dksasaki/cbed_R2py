@@ -7,6 +7,7 @@ ROOT_DIR= '/projects/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zs
 sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
 from porosity2cbed import porosity_main
 import sys
+import tomllib
 
 rename_map = {
     "OM1":  "cbed_om1",
@@ -109,9 +110,6 @@ if __name__ == '__main__':
 
     ROOT_DIR, CACHE_DIR, MOM6_TEMPLATE, CBED_PATTERN, FOUT_STITCH, nx_chunk, ny_chunk = load_config()
 
-    nx_chunk = int(sys.argv[1]) if len(sys.argv) > 1 else nx_chunk
-    ny_chunk = int(sys.argv[2]) if len(sys.argv) > 2 else ny_chunk
-
     fpath  = glob.glob(MOM6_TEMPLATE)
     fpaths = sorted(glob.glob(CBED_PATTERN))
 
@@ -130,8 +128,8 @@ if __name__ == '__main__':
 
     dsout = stich_dataset(ds,
                             dict_cbed,
-                            n_chunks_x=n_chunks_x,
-                            n_chunks_y=n_chunks_y)
+                            n_chunks_x=nx_chunk,
+                            n_chunks_y=ny_chunk)
     # stitching data together
     # dsout = dsout.drop_vars(['x', 'y'])
     # cast variables to float32 with _FillValue=0
@@ -146,7 +144,7 @@ if __name__ == '__main__':
 
 
     dsout.to_netcdf(
-        '../data/cbed_results.nc',
+        FOUT_STITCH,
         format='NETCDF3_64BIT',
         engine='netcdf4',
         encoding=encoding,

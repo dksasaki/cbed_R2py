@@ -6,4 +6,4 @@
 #SBATCH --mem=120G
 #SBATCH --time=01:00:00
 #SBATCH --exclude=d3032,d3232,d3203
-pixi run python scripts/cbed_wrapper.py 192 5
+pixi run python scripts/cbed_wrapper.py 192 1
