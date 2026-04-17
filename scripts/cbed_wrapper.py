@@ -77,8 +77,10 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont, start_r=False):
     btm_O2   = float(dscob_b['btm_o2'].values)
     btm_no3  = float(dscob_b['btm_no3'].values)
     btm_nh4  = float(dscob2_b['nh4'].values)
+    btm_talk  = float(dscob2_b['talk'].values)
+
     btm_dic  = float(dscob_b['btm_dic'].values)
-    btm_talk  = float(dscob_b['btm_alk'].values)
+    # btm_talk  = float(dscob_b['btm_alk'].values)
     btm_salt = float(dsmom_b['salt'].values)
 
     fntot    = float(dscob_b['fndet_btm'].values +

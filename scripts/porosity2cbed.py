@@ -56,6 +56,52 @@ class PorosityRegridder:
         return dsout
 
 
+    def reconfigure(self, dsout=None, fout=None, save=False):
+        """Reformat regridded dataset to ncdump-compliant NetCDF3."""
+        if dsout is None:
+            dsout = xr.open_dataset(self.fout)
+        if fout is None:
+            fout = self.fout.replace('.nc', '_reconfigured.nc')
+
+        FILL = 0.8111111
+
+        # rename xh/yh back to lat/lon if needed
+        rename = {k: v for k, v in {'xh': 'lon', 'yh': 'lat'}.items() if k in dsout.dims}
+        if rename:
+            dsout = dsout.rename(rename)
+
+        if 'time' not in dsout.dims:
+            import pandas as pd
+            t = pd.date_range('1993-01-01', periods=1, freq='YS')
+            dsout = dsout.expand_dims(time=t)
+
+        por = dsout['porosity'].astype('float32')
+        por = por.where(por.notnull(), other=FILL)
+
+        dsout = xr.Dataset(
+            {'porosity': por},
+            coords={'time': dsout['time'], 'lat': dsout['lat'], 'lon': dsout['lon']}
+        )
+
+        dsout['lat'].attrs  = {'units': 'degrees_north', 'long_name': 'lat', 'cartesian_axis': 'Y'}
+        dsout['lon'].attrs  = {'units': 'degrees_east',  'long_name': 'lon', 'cartesian_axis': 'X'}
+        dsout['time'].attrs = {'long_name': 'time'}
+        dsout['porosity'].attrs = {
+            'units':      'unitless',
+            'long_name':  'Seafloor sediment porosity',
+            '_FillValue': FILL,
+        }
+
+        dsout['porosity'] = dsout['porosity'].transpose('time', 'lat', 'lon')
+
+        if save:
+            encoding = {
+                'time': {'dtype': 'float64', 'calendar': 'NOLEAP'},
+            }
+            dsout.to_netcdf(fout, format='NETCDF3_CLASSIC', encoding=encoding, unlimited_dims=['time'])
+
+        return dsout
+
 def porosity_main(save=False, usecache=True):
     print('WARNING, paths are hardcoded in porosity_main function [in porosity2cbed.py]')
     FGRD = '/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd'
@@ -70,9 +116,9 @@ def porosity_main(save=False, usecache=True):
         fgrd=FGRD,
         fout=FOUT
     )
-    dsout = pr.load(save=False, usecache=True)
-
-    return dsout
+    ds = pr.load(save=False, usecache=True)
+    pr.reconfigure(dsout=ds, fout=osp.join(ROOTDIR, 'data/cache/porosity_final.nc'), save=True)
+    return ds
 
 if __name__ == '__main__':
     porosity_main()

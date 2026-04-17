@@ -24,7 +24,7 @@ def julian2npdatetime(ds):
     time = np.array([np.datetime64(i) for i in ds.time.values]).astype('datetime64[ns]')
     return ds.assign_coords(time=time)
 
-def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None):
+def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None, topog=False):
     
     def _assert_variables(ds, varbs, path):
         assert_list = []
@@ -35,6 +35,13 @@ def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None):
                 assert_list.append(v)
         assert len(assert_list)==0, f"{assert_list} not found in {path}"
 
+    def _merge_topo(ftopo, dsmom):
+        dstopo = xr.open_dataset(ftopo)
+        dstopo = dstopo.rename(nx='xh', ny='yh')
+        dstopo = dstopo.assign_coords(xh=dsmom.xh, yh=dsmom.yh)
+        
+        return xr.merge([dsmom,dstopo])
+    
 
     assert(paths),"must be a string"
     
@@ -71,6 +78,9 @@ def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None):
                    coords='minimal',
                    compat='override',
                    data_vars='minimal')
+
+    if topog:
+        dscobalt = _merge_topo(ftopo, dscobalt)
     return dscobalt
 
 def _variables_model():
@@ -80,7 +90,7 @@ def _variables_model():
         "btm_no3",          # nitrate
         # "btm_nh4",          # ammonium
         "btm_dic",          # dissolved inorganic carbon
-        "btm_alk",          # alkalinity
+        # "btm_alk",          # alkalinity
 
         # Nitrogen fluxes
         "fndet_btm",        # detrital N
@@ -116,7 +126,7 @@ def _variables_model():
         "flithdet_btm",     # lithogenic detritus
     ]
     varbs_mom6   = ['temp', 'salt']
-    varbs_cobalt_tr = ['nh4']
+    varbs_cobalt_tr = ['nh4', 'talk']
     return varbs_cobalt_btm, varbs_mom6, varbs_cobalt_tr
 
 def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tuple:
@@ -212,7 +222,7 @@ if __name__ =='__main__':
                 '202603_cbed_R2py'
     FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw'
     FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
-    CACHE_DIR = osp.join(root_dir, 'data/cache/scratch_test')
+    CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
     os.chdir(ROOT_DIR)
 
