@@ -10,7 +10,29 @@ import xarray as xr
 import pandas as pd
 from multiprocessing import Pool
 import logging
+import model_reader as mr
+from porosity2cbed import porosity_main
+import tomllib
 
+
+def load_config(config_path='config.toml'):
+    with open(config_path, 'rb') as f:
+        cfg = tomllib.load(f)
+
+    paths  = cfg['paths']
+    chunks = cfg['chunks']
+
+    ROOT_DIR  = paths['root_dir']
+    FPATH     = paths['fpath']
+    FTOPO     = paths['ftopo']
+    FGRD      = paths['fgrd']
+    FTEMPLATE = paths['ftemplate']
+    FOUT      = paths['fout']
+    CACHE_DIR = paths['cache_dir']
+    nx_chunk  = chunks['nx']
+    ny_chunk  = chunks['ny']
+
+    return ROOT_DIR, FPATH, FTOPO, FGRD, FTEMPLATE, FOUT, CACHE_DIR, nx_chunk, ny_chunk
 
 
 def pars2r(pars_dict):
@@ -178,64 +200,58 @@ def run_point(args):
         return cont, empty_ds(cont)
 
 
-def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, ny, nx):
-    if chunk == 1:
-        xh_slice, yh_slice = slice(0, 200), slice(0, 200)
-        ivx, ivy = np.arange(0, 200), np.arange(0, 200)
-        ix, iy   = np.arange(0, 200), np.arange(0, 200)
-    elif chunk == 2:
-        xh_slice, yh_slice = slice(0, 200), slice(200, None)
-        ivx, ivy = np.arange(0, 200), np.arange(200, ny)
-        ix, iy   = np.arange(0, 200), np.arange(200, ny)-200
-    elif chunk == 3:
-        xh_slice, yh_slice = slice(200, None), slice(0, 200)
-        ivx, ivy = np.arange(200, nx), np.arange(0, 200)
-        ix, iy   = np.arange(200, nx) - 200, np.arange(0,200)
-    elif chunk == 4:
-        xh_slice, yh_slice = slice(200, None), slice(200, None)
-        ivx, ivy = np.arange(200, nx), np.arange(200, ny)
-        ix, iy   = np.arange(200, nx) - 200, np.arange(200, ny)-200
+def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, ny, nx, n_chunks_x=2, n_chunks_y=2):
+    if chunk == 0:
+        return dsmom, dscob, dscob2, dsporo, np.arange(nx), np.arange(ny), np.arange(nx), np.arange(ny)
 
-    elif chunk ==0:
-        return dsmom, dscob, dscob2, np.arange(nx), np.arange(ny)
-    elif chunk == -1:
-        xh_slice, yh_slice = slice(-2, None), slice(0,2)
-        ivx, ivy = np.arange(nx-2,nx), np.arange(0,2)
-        ix, iy   = np.arange(2), np.arange(2)
+    chunk_idx = chunk - 1
+    ci = chunk_idx % n_chunks_x
+    cj = chunk_idx // n_chunks_x
 
+    x_edges = np.linspace(0, nx, n_chunks_x + 1, dtype=int)
+    y_edges = np.linspace(0, ny, n_chunks_y + 1, dtype=int)
 
-    dsmom_a  = dsmom.isel(xh=xh_slice, yh=yh_slice)
-    dscob_a  = dscob.isel(xh=xh_slice, yh=yh_slice)
-    dscob2_a = dscob2.isel(xh=xh_slice, yh=yh_slice)
-    dsporo_a = dsporo.isel(xh=xh_slice, yh=yh_slice)
+    x_start, x_end = x_edges[ci], x_edges[ci + 1]
+    y_start, y_end = y_edges[cj], y_edges[cj + 1]
+
+    ivx = np.arange(x_start, x_end)
+    ivy = np.arange(y_start, y_end)
+    ix  = np.arange(x_end - x_start)
+    iy  = np.arange(y_end - y_start)
+
+    dsmom_a  = dsmom.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dscob_a  = dscob.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dscob2_a = dscob2.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dsporo_a = dsporo.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
 
     return dsmom_a, dscob_a, dscob2_a, dsporo_a, ivx, ivy, ix, iy
 
 if __name__ == '__main__':
-    ROOT_DIR = '/projects/schultz/d.sasaki/km_scale_model/' + \
-                'mom6cobalt_25th/20240723_zstar/tasks/' + \
-                '202603_cbed_R2py'
-    FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw'
-    FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
-    CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
+    ROOT_DIR, FPATH, FTOPO, FGRD, FTEMPLATE, FOUT, CACHE_DIR, nx_chunk, ny_chunk = load_config()
 
-    nproc = int(sys.argv[1])
-    chunk = int(sys.argv[2])
+    nproc    = int(sys.argv[1])
+    chunk    = int(sys.argv[2])
 
-    # nproc = 200
-    # chunk = 2
-
-
-    sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
-    import model_reader as mr
-    from porosity2cbed import porosity_main
 
 
     script_path = osp.join(ROOT_DIR,'src/cbed_R/cbed_v1_func.R')
 
+    # mr.read_variables will need three datasets containing mom6 and cobalt info
+    # the datasets MUST BE NAMED AS: 
+    # - cobalt_btm.nc
+    # - cobalt_tr.nc
+    # - mom6.nc
+    # ncdump of the files I used can be found in CBED_R2PY/aux
     ds_dict = mr.read_variables(ROOT_DIR,FPATH,FTOPO, CACHE_DIR) 
-    ds_poro = porosity_main()
+
+
+    # ncdump of the files I used below can be found in CBED_R2PY/aux
+    ds_poro = porosity_main(FGRD=FGRD,        # porosity file (subhadeep prepared it)
+                            ROOTDIR=ROOT_DIR, # rood dir we are working at
+                            FPATH=FTEMPLATE,  # template file for output
+                            FTOPO=FTOPO,      # mom6 topography file
+                            FOUT=FOUT)        # output/cache file
     ds_poro.load()
     print(ds_dict.keys(), flush=True)
 
@@ -258,7 +274,9 @@ if __name__ == '__main__':
                                                    dscob2,
                                                    ds_poro,
                                                    ny,
-                                                   nx)
+                                                   nx,
+                                                   n_chunks_x=nx_chunk,
+                                                   n_chunks_y=ny_chunk)
 
     print(f"chunk={chunk} ix={ix[[0,-1]]} iy={iy[[0,-1]]}", flush=True)
 
@@ -278,31 +296,6 @@ if __name__ == '__main__':
 
     
     
-
-
-# def run_point(args):
-#     cont, iv, jv, i,j, valid_points = args
-#     if (jv,iv) in valid_points:
-#         return cont, cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, i, j, cont)
-#     else:
-#         print(i,j,'land')
-#         return cont, empty_ds(cont)
-
-
-    
-
-    # jm, im = np.meshgrid(np.arange(, ix, indexing='ij')
-    # ds = {}
-    # cont = 0
-    # for i,j in zip(im.ravel(), jm.ravel()):
-
-    #     if (i,j) in valid_points:
-    #         ds[cont] = cbed_wrapped(dsmom_a, dscob_a, dscob2_a,  i, j, cont)
-    #     else:
-    #         ds[cont] = empty_ds(cont)
-
-    #     cont += 1
-
     # -- parallel implementation --
     args = [(cont, iv, jv, i, j, valid_points)
             for cont, (iv, jv, i, j) in enumerate(zip(ivm.ravel(),  #

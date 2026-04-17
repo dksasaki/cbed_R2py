@@ -2,3 +2,10 @@
 .pixi/*
 !.pixi/config.toml
 src/cbed_R/*
+**__pycache__
+**nc
+**.ipynb_checkpoints/
+**Untitled**
+**slurm*out
+**delete
+**deletar
