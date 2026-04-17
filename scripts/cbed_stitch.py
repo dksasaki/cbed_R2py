@@ -87,7 +87,7 @@ def stich_dataset(ds, dict_cbed, n_chunks_x=8, n_chunks_y=1):
 n_chunks_x= int(sys.argv[1]) #8
 n_chunks_y= int(sys.argv[2]) #1
 
-fpath = glob.glob('../data/cache/scratch_test/mom6.nc')
+fpath = glob.glob('../data/cache/scratch_test/mom6.nc')  # this is being used as atemplate
 fpaths = sorted(glob.glob('../data/cache/cbed*.nc'))
 
 assert len(fpaths)==n_chunks_x*n_chunks_y, 'check the number of chunked cbed files'
@@ -98,7 +98,7 @@ ds = xr.open_dataset(fpath[0])
 
 # organizing dimension names
 for k in dict_cbed:
-    dict_cbed[k] = dict_cbed[k].rename(level_0='lev',
+    dict_cbed[k] = dict_cbed[k].rename(level_0='l',
                                     level_1='yh',
                                     level_2='xh')
 
