@@ -216,6 +216,9 @@ if __name__ == '__main__':
     nproc = int(sys.argv[1])
     chunk = int(sys.argv[2])
 
+    nx_chunk = 8
+    ny_chunk = 1
+
     # nproc = 200
     # chunk = 2
 
@@ -251,7 +254,9 @@ if __name__ == '__main__':
                                                    dscob2,
                                                    ds_poro,
                                                    ny,
-                                                   nx)
+                                                   nx,
+                                                   n_chunks_x=nx_chunk,
+                                                   n_chunks_y=ny_chunk)
 
     print(f"chunk={chunk} ix={ix[[0,-1]]} iy={iy[[0,-1]]}", flush=True)
 
@@ -271,31 +276,6 @@ if __name__ == '__main__':
 
     
     
-
-
-# def run_point(args):
-#     cont, iv, jv, i,j, valid_points = args
-#     if (jv,iv) in valid_points:
-#         return cont, cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, i, j, cont)
-#     else:
-#         print(i,j,'land')
-#         return cont, empty_ds(cont)
-
-
-    
-
-    # jm, im = np.meshgrid(np.arange(, ix, indexing='ij')
-    # ds = {}
-    # cont = 0
-    # for i,j in zip(im.ravel(), jm.ravel()):
-
-    #     if (i,j) in valid_points:
-    #         ds[cont] = cbed_wrapped(dsmom_a, dscob_a, dscob2_a,  i, j, cont)
-    #     else:
-    #         ds[cont] = empty_ds(cont)
-
-    #     cont += 1
-
     # -- parallel implementation --
     args = [(cont, iv, jv, i, j, valid_points)
             for cont, (iv, jv, i, j) in enumerate(zip(ivm.ravel(),  #
