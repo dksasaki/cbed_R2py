@@ -10,7 +10,29 @@ import xarray as xr
 import pandas as pd
 from multiprocessing import Pool
 import logging
+import model_reader as mr
+from porosity2cbed import porosity_main
+import tomllib
 
+
+def load_config(config_path='config.toml'):
+    with open(config_path, 'rb') as f:
+        cfg = tomllib.load(f)
+
+    paths  = cfg['paths']
+    chunks = cfg['chunks']
+
+    ROOT_DIR  = paths['root_dir']
+    FPATH     = paths['fpath']
+    FTOPO     = paths['ftopo']
+    FGRD      = paths['fgrd']
+    FTEMPLATE = paths['ftemplate']
+    FOUT      = paths['fout']
+    CACHE_DIR = paths['cache_dir']
+    nx_chunk  = chunks['nx']
+    ny_chunk  = chunks['ny']
+
+    return ROOT_DIR, FPATH, FTOPO, FGRD, FTEMPLATE, FOUT, CACHE_DIR, nx_chunk, ny_chunk
 
 
 def pars2r(pars_dict):
@@ -205,32 +227,12 @@ def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, ny, nx, n_chunks_x=2, n_chunk
     return dsmom_a, dscob_a, dscob2_a, dsporo_a, ivx, ivy, ix, iy
 
 if __name__ == '__main__':
-    ROOT_DIR = '/projects/schultz/d.sasaki/km_scale_model/' + \
-                'mom6cobalt_25th/20240723_zstar/tasks/' + \
-                '202603_cbed_R2py'
-    FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw'
-    FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
-    CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
-    # porosity info
-    FGRD      = '/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd'
-    FTEMPLATE = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc'
-    FOUT = osp.join(ROOT_DIR,'data/cache/porosity_neus25.nc') 
+    ROOT_DIR, FPATH, FTOPO, FGRD, FTEMPLATE, FOUT, CACHE_DIR, nx_chunk, ny_chunk = load_config()
 
-    nproc = int(sys.argv[1])  # number of processors used to run the model
-    chunk = int(sys.argv[2])  # chunk id (if chunk=0 the script will process the entire domain)
+    nproc    = int(sys.argv[1])
+    chunk    = int(sys.argv[2])
 
-    # we will chunk the domain so we don't need the entire processing in a single batch
-    nx_chunk = 8
-    ny_chunk = 1
-
-    # nproc = 200
-    # chunk = 2
-
-
-    sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
-    import model_reader as mr
-    from porosity2cbed import porosity_main
 
 
     script_path = osp.join(ROOT_DIR,'src/cbed_R/cbed_v1_func.R')

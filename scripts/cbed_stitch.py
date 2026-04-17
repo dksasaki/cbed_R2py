@@ -23,6 +23,27 @@ rename_map = {
 }
 
 
+def load_config(config_path='config.toml'):
+    with open(config_path, 'rb') as f:
+        cfg = tomllib.load(f)
+
+    config_dir = osp.dirname(osp.abspath(config_path))
+
+    paths  = cfg['paths']
+    chunks = cfg['chunks']
+    stitch = cfg['stitch']
+
+    ROOT_DIR     = osp.join(config_dir, paths['root_dir'])
+    CACHE_DIR    = osp.join(config_dir, paths['cache_dir'])
+    MOM6_TEMPLATE = osp.join(config_dir, stitch['mom6_template'])
+    CBED_PATTERN  = osp.join(config_dir, stitch['cbed_pattern'])
+    FOUT_STITCH   = osp.join(config_dir, stitch['output'])
+    nx_chunk     = chunks['nx']
+    ny_chunk     = chunks['ny']
+
+    return ROOT_DIR, CACHE_DIR, MOM6_TEMPLATE, CBED_PATTERN, FOUT_STITCH, nx_chunk, ny_chunk
+
+
 def cbedchunks2grid(da_grid, dict_cbed, cbedvarb, n_chunks_x=2, n_chunks_y=2):
     n_levels = dict_cbed[0].dims['l']
     dataarray = da_grid.expand_dims(l=n_levels).copy()
@@ -86,13 +107,15 @@ def stich_dataset(ds, dict_cbed, n_chunks_x=8, n_chunks_y=1):
 if __name__ == '__main__':
 
 
-    n_chunks_x= int(sys.argv[1]) #8
-    n_chunks_y= int(sys.argv[2]) #1
+    ROOT_DIR, CACHE_DIR, MOM6_TEMPLATE, CBED_PATTERN, FOUT_STITCH, nx_chunk, ny_chunk = load_config()
 
-    fpath = glob.glob('../data/cache/scratch_test/mom6.nc')  # this is being used as atemplate
-    fpaths = sorted(glob.glob('../data/cache/cbed*.nc'))
+    nx_chunk = int(sys.argv[1]) if len(sys.argv) > 1 else nx_chunk
+    ny_chunk = int(sys.argv[2]) if len(sys.argv) > 2 else ny_chunk
 
-    assert len(fpaths)==n_chunks_x*n_chunks_y, 'check the number of chunked cbed files'
+    fpath  = glob.glob(MOM6_TEMPLATE)
+    fpaths = sorted(glob.glob(CBED_PATTERN))
+
+    assert len(fpaths)==nx_chunk*ny_chunk, 'check the number of chunked cbed files'
 
     #reading datasets
     dict_cbed = {i:xr.open_dataset(f) for i,f in enumerate(fpaths)}
