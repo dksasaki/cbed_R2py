@@ -14,12 +14,12 @@ class PorosityRegridder:
         self.fgrd  = fgrd
         self.fout  = fout
 
-    def load(self, save=False, usecache=False):
+    def load(self, varbs, save=False, usecache=False):
         if usecache and glob.glob(self.fout):
             print('Loading cached file.')
             return xr.open_dataset(self.fout)
 
-        ds1    = mr.read_mom6cobalt(self.fpath, self.ftopo, varbs=['temp'])
+        ds1    = mr.read_mom6cobalt(self.fpath, self.ftopo, varbs=[varbs])
         has_xy = self.fgrd.endswith('.grd')
         chunks = dict(x=400, y=400) if has_xy else dict(lon=200, lat=200)
         dsgrd  = xr.open_dataset(self.fgrd, chunks=chunks)
@@ -102,13 +102,23 @@ class PorosityRegridder:
 
         return dsout
 
-def porosity_main(save=False, usecache=True):
+def porosity_main(FGRD=None, 
+                  ROOTDIR=None,
+                  FPATH=None,
+                  FTOPO=None,
+                  FOUT=None,
+                  save=False,
+                  usecache=True):
     print('WARNING, paths are hardcoded in porosity_main function [in porosity2cbed.py]')
-    FGRD = '/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd'
-    ROOTDIR   = '/projects/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zstar/tasks/202603_cbed_R2py'
-    FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc'
-    FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
-    FOUT = osp.join(ROOTDIR,'data/cache/porosity_neus25.nc')
+    _ = mr.get_client()
+
+    f = lambda x,y: x if y is None else y
+
+    FGRD      = f('/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd' , FGRD)
+    ROOTDIR   = f('/projects/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zstar/tasks/202603_cbed_R2py' , ROOTDIR)
+    FPATH     = f('/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc' , FPATH)
+    FTOPO     = f('/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc' , FTOPO)
+    FOUT = f(osp.join(ROOTDIR,'data/cache/porosity_neus25.nc') , FOUT)
     
     pr    = PorosityRegridder(
         fpath=FPATH,
@@ -116,7 +126,7 @@ def porosity_main(save=False, usecache=True):
         fgrd=FGRD,
         fout=FOUT
     )
-    ds = pr.load(save=False, usecache=True)
+    ds = pr.load(save=False, usecache=True, varbs='temp')
     pr.reconfigure(dsout=ds, fout=osp.join(ROOTDIR, 'data/cache/porosity_final.nc'), save=True)
     return ds
 
