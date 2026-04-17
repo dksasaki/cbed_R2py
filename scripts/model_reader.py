@@ -232,7 +232,6 @@ def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tupl
 
 
 if __name__ =='__main__':
-    _ = get_client()
     
     ROOT_DIR = '/projects/schultz/d.sasaki/km_scale_model/' + \
                 'mom6cobalt_25th/20240723_zstar/tasks/' + \
