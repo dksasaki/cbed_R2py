@@ -178,36 +178,29 @@ def run_point(args):
         return cont, empty_ds(cont)
 
 
-def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, ny, nx):
-    if chunk == 1:
-        xh_slice, yh_slice = slice(0, 200), slice(0, 200)
-        ivx, ivy = np.arange(0, 200), np.arange(0, 200)
-        ix, iy   = np.arange(0, 200), np.arange(0, 200)
-    elif chunk == 2:
-        xh_slice, yh_slice = slice(0, 200), slice(200, None)
-        ivx, ivy = np.arange(0, 200), np.arange(200, ny)
-        ix, iy   = np.arange(0, 200), np.arange(200, ny)-200
-    elif chunk == 3:
-        xh_slice, yh_slice = slice(200, None), slice(0, 200)
-        ivx, ivy = np.arange(200, nx), np.arange(0, 200)
-        ix, iy   = np.arange(200, nx) - 200, np.arange(0,200)
-    elif chunk == 4:
-        xh_slice, yh_slice = slice(200, None), slice(200, None)
-        ivx, ivy = np.arange(200, nx), np.arange(200, ny)
-        ix, iy   = np.arange(200, nx) - 200, np.arange(200, ny)-200
+def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, ny, nx, n_chunks_x=2, n_chunks_y=2):
+    if chunk == 0:
+        return dsmom, dscob, dscob2, dsporo, np.arange(nx), np.arange(ny), np.arange(nx), np.arange(ny)
 
-    elif chunk ==0:
-        return dsmom, dscob, dscob2, np.arange(nx), np.arange(ny)
-    elif chunk == -1:
-        xh_slice, yh_slice = slice(-2, None), slice(0,2)
-        ivx, ivy = np.arange(nx-2,nx), np.arange(0,2)
-        ix, iy   = np.arange(2), np.arange(2)
+    chunk_idx = chunk - 1
+    ci = chunk_idx % n_chunks_x
+    cj = chunk_idx // n_chunks_x
 
+    x_edges = np.linspace(0, nx, n_chunks_x + 1, dtype=int)
+    y_edges = np.linspace(0, ny, n_chunks_y + 1, dtype=int)
 
-    dsmom_a  = dsmom.isel(xh=xh_slice, yh=yh_slice)
-    dscob_a  = dscob.isel(xh=xh_slice, yh=yh_slice)
-    dscob2_a = dscob2.isel(xh=xh_slice, yh=yh_slice)
-    dsporo_a = dsporo.isel(xh=xh_slice, yh=yh_slice)
+    x_start, x_end = x_edges[ci], x_edges[ci + 1]
+    y_start, y_end = y_edges[cj], y_edges[cj + 1]
+
+    ivx = np.arange(x_start, x_end)
+    ivy = np.arange(y_start, y_end)
+    ix  = np.arange(x_end - x_start)
+    iy  = np.arange(y_end - y_start)
+
+    dsmom_a  = dsmom.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dscob_a  = dscob.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dscob2_a = dscob2.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dsporo_a = dsporo.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
 
     return dsmom_a, dscob_a, dscob2_a, dsporo_a, ivx, ivy, ix, iy
 
