@@ -12,11 +12,11 @@ A Python wrapper that parallelizes the [CBED](link) diagenetic model across a 2D
 
 ## 1. Installation
 
-Requires [pixi](https://pixi.sh). All dependencies are managed via `pixi.toml`.
+Requires [pixi](https://pixi.prefix.dev/latest/installation/). All dependencies are managed via `pixi.toml`.
 
 ```bash
-git clone <repo>
-cd <repo>
+git clone https://github.com/dksasaki/cbed_R2py.git
+cd cbed_R2py
 pixi install
 pixi run setup-r
 ```
