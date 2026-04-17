@@ -85,8 +85,8 @@ def stich_dataset(ds, dict_cbed, n_chunks_x=8, n_chunks_y=1):
 
 if __name__ == '__main__':
 
-    n_chunks_x=sys.argv[1] #8
-    n_chunks_y=sys.argv[2] #1
+    n_chunks_x= int(sys.argv[1]) #8
+    n_chunks_y= int(sys.argv[2]) #1
 
     fpath = glob.glob('../data/cache/scratch_test/mom6.nc')
     fpaths = sorted(glob.glob('../data/cache/cbed*.nc'))
