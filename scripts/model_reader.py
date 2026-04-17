@@ -12,11 +12,23 @@ log = logging.getLogger(__name__)
 
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
-if 'client' not in globals():
-    cluster = LocalCluster(n_workers=16,
-                           threads_per_worker=1,
-                           memory_limit='32GB')
-    client = Client(cluster)
+# if 'client' not in globals():
+#     cluster = LocalCluster(n_workers=16,
+#                            threads_per_worker=1,
+#                            memory_limit='32GB')
+#     client = Client(cluster)
+
+_client = None
+_cluster = None
+
+def get_client(n_workers=16, threads_per_worker=1, memory_limit='32GB'):
+    global _client, _cluster
+    if _client is None:
+        _cluster = LocalCluster(n_workers=n_workers,
+                                threads_per_worker=threads_per_worker,
+                                memory_limit=memory_limit)
+        _client = Client(_cluster)
+    return _client
 
 
 def julian2npdatetime(ds):
@@ -25,7 +37,8 @@ def julian2npdatetime(ds):
     return ds.assign_coords(time=time)
 
 def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None, topog=False):
-    
+    _ = get_client()
+
     def _assert_variables(ds, varbs, path):
         assert_list = []
         for  v in varbs:
@@ -163,6 +176,8 @@ def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tupl
     FileNotFoundError
         If fpath or ftopo do not exist.
     """
+    _ = get_client()
+
     if not osp.exists(fpath):
         raise FileNotFoundError(f"Model output path not found: {fpath}")
     if not osp.exists(ftopo):
@@ -215,8 +230,10 @@ def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tupl
     ds_dict['dscobalt_tr']  = dscobalt_tr
     return ds_dict
 
-if __name__ =='__main__':
 
+if __name__ =='__main__':
+    _ = get_client()
+    
     ROOT_DIR = '/projects/schultz/d.sasaki/km_scale_model/' + \
                 'mom6cobalt_25th/20240723_zstar/tasks/' + \
                 '202603_cbed_R2py'
