@@ -110,7 +110,7 @@ def porosity_main(FGRD=None,
                   save=False,
                   usecache=True):
     print('WARNING, paths are hardcoded in porosity_main function [in porosity2cbed.py]')
-    _ = mr.get_client()
+    # _ = mr.get_client()
 
     f = lambda x,y: x if y is None else y
 
