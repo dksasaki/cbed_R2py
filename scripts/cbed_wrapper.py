@@ -212,10 +212,15 @@ if __name__ == '__main__':
     FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
     CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
+    # porosity info
+    FGRD      = '/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd'
+    FTEMPLATE = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc'
+    FOUT = osp.join(ROOT_DIR,'data/cache/porosity_neus25.nc') 
 
-    nproc = int(sys.argv[1])
-    chunk = int(sys.argv[2])
+    nproc = int(sys.argv[1])  # number of processors used to run the model
+    chunk = int(sys.argv[2])  # chunk id (if chunk=0 the script will process the entire domain)
 
+    # we will chunk the domain so we don't need the entire processing in a single batch
     nx_chunk = 8
     ny_chunk = 1
 
@@ -230,8 +235,21 @@ if __name__ == '__main__':
 
     script_path = osp.join(ROOT_DIR,'src/cbed_R/cbed_v1_func.R')
 
+    # mr.read_variables will need three datasets containing mom6 and cobalt info
+    # the datasets MUST BE NAMED AS: 
+    # - cobalt_btm.nc
+    # - cobalt_tr.nc
+    # - mom6.nc
+    # ncdump of the files I used can be found in CBED_R2PY/aux
     ds_dict = mr.read_variables(ROOT_DIR,FPATH,FTOPO, CACHE_DIR) 
-    ds_poro = porosity_main()
+
+
+    # ncdump of the files I used below can be found in CBED_R2PY/aux
+    ds_poro = porosity_main(FGRD=FGRD,        # porosity file (subhadeep prepared it)
+                            ROOTDIR=ROOT_DIR, # rood dir we are working at
+                            FPATH=FTEMPLATE,  # template file for output
+                            FTOPO=FTOPO,      # mom6 topography file
+                            FOUT=FOUT)        # output/cache file
     ds_poro.load()
     print(ds_dict.keys(), flush=True)
 
