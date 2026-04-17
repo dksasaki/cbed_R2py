@@ -5,7 +5,6 @@ import sys
 import os.path as osp
 ROOT_DIR= '/projects/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zstar/tasks/202603_cbed_R2py'
 sys.path.append(osp.join(ROOT_DIR,'scripts/'))  
-import model_reader as mr
 from porosity2cbed import porosity_main
 import sys
 
