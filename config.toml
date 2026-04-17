@@ -1,0 +1,18 @@
+[paths]
+root_dir   = "/projects/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zstar/tasks/202603_cbed_R2py" 
+fpath      = "/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw"
+ftopo      = "/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc"
+fgrd       = "/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd"
+ftemplate  = "/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc"
+fout       = "data/cache/porosity_neus25.nc"
+cache_dir  = "data/cache"
+
+
+[stitch]
+mom6_template = "data/cache/scratch_test/mom6.nc"
+cbed_pattern  = "data/cache/cbed*.nc"
+output        = "data/cbed_results.nc"
+
+[chunks]
+nx = 8
+ny = 1
