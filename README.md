@@ -19,6 +19,7 @@ git clone https://github.com/dksasaki/cbed_R2py.git
 cd cbed_R2py
 pixi install
 pixi run setup-r
+pixi shell
 ```
 
 `setup-r` installs the R packages `ReacTran` and `marelac` through CRAN. All packages are installed within the pixi environment. Dependencies are pinned in `pixi.toml`.
