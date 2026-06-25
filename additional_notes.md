@@ -16,7 +16,9 @@ Each file must have the following dimensions:
 - `*cobalt_tracers.nc` : `(time, z_l, yh, xh)` — bottom-most level is extracted
 - `*ocean_daily.nc` : `(time, zl, yh, xh)` — bottom-most level is extracted
 
+## Cache behavior
 
+`read_variables` caches processed datasets to `cache_dir`. If the cache files already exist, the raw model files are not re-read. This means that changes to `fpath` or to the variable lists in `_variables_model()` will not take effect unless the cache is manually deleted.
 
 ## Time averaging inconsistency
 
