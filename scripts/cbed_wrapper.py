@@ -221,8 +221,8 @@ def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, dsdepth, ny, nx, n_chunks_x=2
     ivy = np.arange(y_start, y_end)
     ix  = np.arange(x_end - x_start)
     iy  = np.arange(y_end - y_start)
-    
-    dsdepth = dsdepth.rename(xh='nx', yh='ny')
+
+    dsdepth = dsdepth.rename(nh='xh', ny='yh')
     dsmom_a   = dsmom.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
     dscob_a   = dscob.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
     dscob2_a  = dscob2.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
