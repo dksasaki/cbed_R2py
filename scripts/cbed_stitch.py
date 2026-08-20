@@ -117,6 +117,9 @@ if __name__ == '__main__':
 
     #reading datasets
     dict_cbed = {i:xr.open_dataset(f) for i,f in enumerate(fpaths)}
+
+    for k in dict_cbed:
+        dict_cbed[k].load()
     ds = xr.open_dataset(fpath[0])
 
     # organizing dimension names
@@ -138,6 +141,11 @@ if __name__ == '__main__':
     dsout['porosity'] = dsout['cbed_om1'][0]
     dsout['porosity'].values = porosity['porosity'].values
     # dsout = dsout.assign_coords(x=ds['x'], y=ds['y'], l=np.arange(20))
+
+    # benthic flux accumulators, initialized to zero (y, x)
+    for accvar in ['cbed_b_o2_acc', 'cbed_b_dic_acc', 'cbed_b_nh4_acc',
+                   'cbed_b_no3_acc', 'cbed_b_alk_org_acc', 'cbed_b_odu_acc']:
+        dsout[accvar] = xr.zeros_like(dsout['porosity'])
 
     encoding = {v: {'dtype': 'float32', '_FillValue': 0} for v in dsout.data_vars}
     encoding['l'] = {'dtype': 'int64'}

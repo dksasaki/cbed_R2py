@@ -78,11 +78,11 @@ def init_worker():
     global r
     import rpy2.robjects as ro
     r = ro.r
-    r(f'source("{ROOT_DIR}/src/cbed_R/cbed_v1_func.R")')
+    r(f'source("{ROOT_DIR}/src/cbed_v2_func.R")')
     r(f'source("{ROOT_DIR}/scripts/default_CBED_pars.R")')
 
 
-def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont, start_r=False):
+def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i,j,cont, start_r=False):
 
     if start_r is False:
         global r
@@ -93,8 +93,8 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont, start_r=False):
     dscob2_b = dscob2_a.isel(xh=i, yh=j)
     dscob_b = dscob_a.isel(xh=i, yh=j)
     dsporo_b = dsporo_a.isel(xh=i, yh=j)
+    dsdepth_b = dsdepth_a.isel(xh=i, yh=j)
 
-    ocean_depth = xr.open_dataset(FTOPO)
     btm_temp = float(dsmom_b['temp'].values)
     btm_O2   = float(dscob_b['btm_o2'].values)
     btm_no3  = float(dscob_b['btm_no3'].values)
@@ -133,6 +133,7 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont, start_r=False):
         ) / 1e4 * 60*60*24*365  # cm/yr
 
     porosity = float(dsporo_b['porosity'].values)
+    btm_depth = float(dsdepth_b['depth'].values)
 
     if start_r:
         source = lambda x: f"source(\"{x}\")"
@@ -156,22 +157,24 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont, start_r=False):
     _default_pars["DIC"]     = max([0, btm_dic])
     _default_pars["TAlk.w"]  = max([0, btm_talk])
     _default_pars["S"]       = max([0, btm_salt])
-    _default_pars["depth"]   = max([0, 200])
+    _default_pars["depth"]   = max([0, btm_depth])
+
+    # depth-dependent OM reactivity pool fractions (ss_global_parallel.R)
+    depth_for_fom = max(1e-6, _default_pars["depth"])
+    f_om1 = min(0.80, 0.65*(100/depth_for_fom)**0.4)
+    f_om2 = max(0.10, 0.22*(100/depth_for_fom)**-0.3)
+    _default_pars["f.OM1"] = f_om1
+    _default_pars["f.OM2"] = f_om2
+    _default_pars["f.OM3"] = 1.0 - (f_om1 + f_om2)
 
     pars_items = ["J.OM", "O2.w", "w", "temp", "por.0",
                   "por.inf", "NO3.w", "NH4.w", "DIC",
-                  "TAlk.w", "S", "depth"]
-    
+                  "TAlk.w", "S", "depth", "f.OM1", "f.OM2", "f.OM3"]
+
 
 
     # _default_pars
     r_pars_updated = pars2r(_default_pars)
-
-    r("""
-    manual_control_bioturbation <- F
-    manual_control_bioirrigation <- F
-    manual_OM_decay_rate <- F
-    """)
 
     ro.globalenv["py_pars"] = r_pars_updated
     try:
@@ -194,15 +197,15 @@ def run_point(args):
     # iv, jv are global indices that are comparable with valid_points set
     # i,j are local indices used to find the point in the dataset through isel
     if (jv,iv) in valid_points:
-        return cont, cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, i, j, cont)
+        return cont, cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i, j, cont)
     else:
         print(i,j,'land')
         return cont, empty_ds(cont)
 
 
-def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, ny, nx, n_chunks_x=2, n_chunks_y=2):
+def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, dsdepth, ny, nx, n_chunks_x=2, n_chunks_y=2):
     if chunk == 0:
-        return dsmom, dscob, dscob2, dsporo, np.arange(nx), np.arange(ny), np.arange(nx), np.arange(ny)
+        return dsmom, dscob, dscob2, dsporo, dsdepth, np.arange(nx), np.arange(ny), np.arange(nx), np.arange(ny)
 
     chunk_idx = chunk - 1
     ci = chunk_idx % n_chunks_x
@@ -219,12 +222,13 @@ def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, ny, nx, n_chunks_x=2, n_chunk
     ix  = np.arange(x_end - x_start)
     iy  = np.arange(y_end - y_start)
 
-    dsmom_a  = dsmom.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
-    dscob_a  = dscob.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
-    dscob2_a = dscob2.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
-    dsporo_a = dsporo.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dsmom_a   = dsmom.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dscob_a   = dscob.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dscob2_a  = dscob2.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dsporo_a  = dsporo.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dsdepth_a = dsdepth.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
 
-    return dsmom_a, dscob_a, dscob2_a, dsporo_a, ivx, ivy, ix, iy
+    return dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, ivx, ivy, ix, iy
 
 if __name__ == '__main__':
 
@@ -235,7 +239,7 @@ if __name__ == '__main__':
 
 
 
-    script_path = osp.join(ROOT_DIR,'src/cbed_R/cbed_v1_func.R')
+    script_path = osp.join(ROOT_DIR,'src/cbed_R/cbed_v2_func.R')
 
     # mr.read_variables will need three datasets containing mom6 and cobalt info
     # the datasets MUST BE NAMED AS: 
@@ -255,6 +259,12 @@ if __name__ == '__main__':
     ds_poro.load()
     print(ds_dict.keys(), flush=True)
 
+    # ocean_topog.nc's 'depth' variable is already on the xh/yh tracer grid,
+    # so it needs no regridding (unlike porosity, which comes in on lon/lat
+    # and is regridded onto xh/yh inside porosity_main).
+    ds_depth = xr.open_dataset(FTOPO)[['depth']]
+    ds_depth.load()
+
     print("reading datasets")
     dscob  = ds_dict['dscobalt_btm'].mean(dim='time')
     dscob2 = ds_dict['dscobalt_tr'].mean(dim='time')
@@ -268,11 +278,12 @@ if __name__ == '__main__':
     ny, nx = dscob['btm_o2'].values.shape
     print(f"grid shape: ny={ny} nx={nx}", flush=True)
 
-    dsmom_a, dscob_a, dscob2_a, dsporo_a,ivx, ivy, ix, iy = get_chunk(chunk,
+    dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, ivx, ivy, ix, iy = get_chunk(chunk,
                                                    dsmom,
                                                    dscob,
                                                    dscob2,
                                                    ds_poro,
+                                                   ds_depth,
                                                    ny,
                                                    nx,
                                                    n_chunks_x=nx_chunk,
