@@ -1,11 +1,12 @@
 [paths]
 root_dir   = "/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zstar/tasks/202603_cbed_R2py" 
-fpath      = "/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw"
+fpath      = "/home/d.sasaki/scratch/mom_experiments2/202606_sobolm/20260622_nocbed/outputs_raw"
 ftopo      = "/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc"
 fgrd       = "/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd"
-ftemplate  = "/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc"
+ftemplate  = "/home/d.sasaki/scratch/mom_experiments2/202607_kelp_delete/outputs_raw0/20180101.ocean_daily_2018_01.nc"
 fout       = "data/cache/porosity_neus25.nc"
-cache_dir  = "data/cache"
+cache_dir  = "data/cache/scratch_test"
+
 
 
 [stitch]
