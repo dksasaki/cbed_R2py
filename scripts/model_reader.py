@@ -7,7 +7,7 @@ import numpy as np
 import logging
 from dask.distributed import Client, LocalCluster
 from dask.distributed import progress, wait
-
+import sys
 log = logging.getLogger(__name__)
 
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
@@ -21,7 +21,10 @@ os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 _client = None
 _cluster = None
 
-def get_client(n_workers=16, threads_per_worker=1, memory_limit='32GB'):
+def get_client(n_workers=56, threads_per_worker=1, memory_limit='128GB'):
+
+    if not hasattr(sys.modules['__main__'], '__spec__'):
+        sys.modules['__main__'].__spec__ = None
     global _client, _cluster
     if _client is None:
         _cluster = LocalCluster(n_workers=n_workers,
@@ -73,11 +76,11 @@ def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None, topog=False):
         # make sure that cobalt3d, mom63d and mom62d work with this function
         if chunk_dict is None:
             if 'z_l' in ds:
-                chunk_dict = dict(xh=100, yh=100, time=20, z_l=5)
-            elif 'z_l' in ds:
-                chunk_dict = dict(xh=100, yh=100, time=20, zl=5)
+                chunk_dict = dict(xh=100, yh=100, time=-1, z_l=-1)
+            elif 'zl' in ds:
+                chunk_dict = dict(xh=100, yh=100, time=-1, zl=1)
             else:
-                chunk_dict = dict(xh=100, yh=100, time=20)
+                chunk_dict = dict(xh=100, yh=100, time=-1)
         else:
             assert type(chunk_dict) is dict,"chunk_dict must either None or type(dict)"
             
@@ -134,7 +137,6 @@ def _variables_model():
         "fpsm_btm",         # small phyto P
         "fpmd_btm",         # medium phyto P
         "fplg_btm",         # large phyto P
-
         # Lithogenic
         "flithdet_btm",     # lithogenic detritus
     ]
@@ -204,21 +206,52 @@ def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tupl
         return fn(fsave)
 
     def _read_cobalt_btm(fsave):
-        fpaths = osp.join(fpath, '*cobalt_btm.nc')
-        ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_btm)
-        return _persist_and_save(ds, fsave)
+        fpaths = osp.join(fpath, '*cobalt_btm*.nc')
+        ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_btm,
+                              chunk_dict=dict(xh=50, yh=50, time=-1))
+        ds_mean = ds.mean(dim='time')
+        for v in ds.data_vars:
+            ds_mean[v].attrs = ds[v].attrs
+        return _persist_and_save(ds_mean, fsave)
 
     def _read_cobalt_tr(fsave):
-        fpaths = osp.join(fpath, '*cobalt_tracers.nc')
-        ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_tr, chunk_dict={'z_l': 52})
-        ds = ds.ffill(dim='z_l').bfill(dim='z_l').isel(z_l=-1)
-        return _persist_and_save(ds, fsave)
+        fpaths = osp.join(fpath, '*cobalt_tracers*.nc')
+        ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_tr,
+                              chunk_dict=dict(xh=50, yh=50, time=-1, z_l=-1),
+                              topog=True)
+        ds = ds.where(ds.z_l < ds.depth)
+        ds = ds.ffill(dim='z_l')
+        ds_mean = ds.isel(z_l=-1).mean(dim='time')
+        for v in ds.data_vars:
+            if v in ds_mean:
+                ds_mean[v].attrs = ds[v].attrs
+        return _persist_and_save(ds_mean, fsave)
 
     def _read_mom(fsave):
-        fpaths = osp.join(fpath, '*ocean_daily.nc')
-        ds = read_mom6cobalt(fpaths, ftopo, varbs_mom6, chunk_dict={'zl': 1})
-        ds = ds.isel(zl=-1).mean(dim='time')
-        return _persist_and_save(ds, fsave)
+        fpaths = osp.join(fpath, '*ocean_daily_*.nc')
+        ds = read_mom6cobalt(fpaths, ftopo, varbs_mom6,
+                              chunk_dict=dict(xh=50, yh=50, time=-1, zl=-1))
+        ds_mean = ds.isel(zl=-1).mean(dim='time')
+        for v in ds.data_vars:
+            ds_mean[v].attrs = ds[v].attrs
+        return _persist_and_save(ds_mean, fsave)
+    
+    # def _read_cobalt_btm(fsave):
+    #     fpaths = osp.join(fpath, '*cobalt_btm*.nc')
+    #     ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_btm)
+    #     return _persist_and_save(ds, fsave)
+
+    # def _read_cobalt_tr(fsave):
+    #     fpaths = osp.join(fpath, '*cobalt_tracers*.nc')
+    #     ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_tr, chunk_dict={'z_l': 52})
+    #     ds = ds.ffill(dim='z_l').bfill(dim='z_l').isel(z_l=-1)
+    #     return _persist_and_save(ds, fsave)
+
+    # def _read_mom(fsave):
+    #     fpaths = osp.join(fpath, '*ocean_daily_*.nc')
+    #     ds = read_mom6cobalt(fpaths, ftopo, varbs_mom6, chunk_dict={'zl': 1})
+    #     ds = ds.isel(zl=-1).mean(dim='time')
+    #     return _persist_and_save(ds, fsave)
 
     dscobalt_btm = _cached(osp.join(cache_dir, 'cobalt_btm.nc'), _read_cobalt_btm)
     dscobalt_tr  = _cached(osp.join(cache_dir, 'cobalt_tr.nc'),  _read_cobalt_tr)
@@ -236,7 +269,7 @@ if __name__ =='__main__':
     ROOT_DIR = '/projects/schultz/d.sasaki/km_scale_model/' + \
                 'mom6cobalt_25th/20240723_zstar/tasks/' + \
                 '202603_cbed_R2py'
-    FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw'
+    FPATH     = '/home/d.sasaki/scratch/temp/202609_delete/outputs_raw/iteration1'
     FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
     CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 
