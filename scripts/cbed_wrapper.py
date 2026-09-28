@@ -32,6 +32,13 @@ def load_config(config_path='config.toml'):
     nx_chunk  = chunks['nx']
     ny_chunk  = chunks['ny']
 
+    # inputs that must already exist
+    for name, p in [('root_dir', ROOT_DIR), ('fpath', FPATH), ('ftopo', FTOPO),
+                     ('fgrd', FGRD), ('ftemplate', FTEMPLATE)]:
+        if not osp.exists(p):
+            raise FileNotFoundError(f"{name} not found: {p}")
+
+
     return ROOT_DIR, FPATH, FTOPO, FGRD, FTEMPLATE, FOUT, CACHE_DIR, nx_chunk, ny_chunk
 
 
@@ -267,8 +274,8 @@ if __name__ == '__main__':
     ds_depth.load()
 
     print("reading datasets")
-    dscob  = ds_dict['dscobalt_btm'].mean(dim='time')
-    dscob2 = ds_dict['dscobalt_tr'].mean(dim='time')
+    dscob  = ds_dict['dscobalt_btm']#.mean(dim='time')
+    dscob2 = ds_dict['dscobalt_tr']#.mean(dim='time')
     dsmom  = ds_dict['dsmom']
 
     dscob.load()
