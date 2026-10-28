@@ -155,27 +155,27 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i,j,cont, star
 
     _default_pars["J.OM"]    = max([0, fntot])    * 6.625*1000*3600*24 *365/10
     _default_pars["O2.w"]    = max([0, btm_O2])   * 1e3
-    _default_pars["w"]       = max([0, 0.0359])
+    _default_pars["w"]       = max([0, w_tem/(1-porosity)])
     _default_pars["temp"]    = max([0, btm_temp])
     _default_pars["por.0"]   = max([0, porosity])
     _default_pars["por.inf"] = max([0, porosity])
     _default_pars["NO3.w"]   = max([0, btm_no3])  * 1e3
     _default_pars["NH4.w"]   = max([0, btm_nh4])  * 1e3
-    _default_pars["DIC"]     = max([0, btm_dic])
+    _default_pars["DIC.w"]     = max([0, btm_dic]) * 1e3
     _default_pars["TAlk.w"]  = max([0, btm_talk])
     _default_pars["S"]       = max([0, btm_salt])
     _default_pars["depth"]   = max([0, btm_depth])
 
     # depth-dependent OM reactivity pool fractions (ss_global_parallel.R)
     depth_for_fom = max(1e-6, _default_pars["depth"])
-    f_om1 = min(0.80, 0.65*(100/depth_for_fom)**0.4)
-    f_om2 = max(0.10, 0.22*(100/depth_for_fom)**-0.3)
+    f_om1 = min(0.80, 0.65*(100/depth_for_fom)**0.5)
+    f_om3 = max(0.03, 0.04*(100/depth_for_fom)**-0.3)
     _default_pars["f.OM1"] = f_om1
-    _default_pars["f.OM2"] = f_om2
-    _default_pars["f.OM3"] = 1.0 - (f_om1 + f_om2)
+    _default_pars["f.OM3"] = f_om3
+    _default_pars["f.OM2"] = 1.0 - (f_om1 + f_om3)
 
     pars_items = ["J.OM", "O2.w", "w", "temp", "por.0",
-                  "por.inf", "NO3.w", "NH4.w", "DIC",
+                  "por.inf", "NO3.w", "NH4.w", "DIC.w",
                   "TAlk.w", "S", "depth", "f.OM1", "f.OM2", "f.OM3"]
 
 
