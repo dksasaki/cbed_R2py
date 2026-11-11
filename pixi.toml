@@ -27,9 +27,9 @@ xesmf      = "*"
 esmpy      = ">=8.5"
 
 [pypi-dependencies]
-# cbed2py (transient CBED + Newton-Krylov spin-up), used by [cbed] method = "newton_krylov".
-# Expects cbedr2py_1d cloned next to this repository.
-cbed2py = { path = "../cbedr2py_1d", editable = true }
+# CBED model (cbedr2py_1d), pinned to a commit of branch dev_new_methods.
+# Local clone instead: cbed2py = { path = "../cbedr2py_1d", editable = true }
+cbed2py = { git = "https://github.com/dksasaki/cbedr2py_1d", rev = "62b7f8f16dc288d4e8286ca6e36c6da181d189ca" }
 
 [tasks]
 setup-r = "Rscript -e \"install.packages(c('ReacTran', 'marelac'), repos='https://cloud.r-project.org')\""

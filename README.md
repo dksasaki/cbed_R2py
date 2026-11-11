@@ -26,12 +26,11 @@ pixi shell
 
 The CBED model code (R) comes from the
 [`cbed2py`](https://github.com/dksasaki/cbedr2py_1d) package, for both methods
-(see [CBED method](#cbed-method)). pixi installs it from a clone next to this
-repository (`../cbedr2py_1d`, see `[pypi-dependencies]` in `pixi.toml`):
-
-```bash
-git clone https://github.com/dksasaki/cbedr2py_1d.git ../cbedr2py_1d
-```
+(see [CBED method](#cbed-method)). `pixi install` installs it from GitHub, pinned to
+a commit of the `dev_new_methods` branch (`rev` in `[pypi-dependencies]` of
+`pixi.toml`), so every install gets the same model code. To use a newer commit,
+change `rev` and run `pixi install`. For local development, `pixi.toml` shows
+how to point to a clone instead.
 
 The `src/cbed_R` submodule (CBED v1) is no longer used by `cbed_wrapper.py`.
 
