@@ -23,6 +23,16 @@ pixi run setup-r
 
 `setup-r` installs the R packages `ReacTran` and `marelac` through CRAN. All packages are installed within the pixi environment. Dependencies are pinned in `pixi.toml`.
 
+The `newton_krylov` method (see [CBED method](#cbed-method)) uses the
+[`cbed2py`](https://github.com/dksasaki/cbedr2py_1d) package, installed by pixi
+from a clone next to this repository (`../cbedr2py_1d`, see `[pypi-dependencies]`
+in `pixi.toml`):
+
+```bash
+git clone https://github.com/dksasaki/cbedr2py_1d.git ../cbedr2py_1d
+git submodule update --init      # src/cbed_R, used by the steady_state method
+```
+
 
 
 ## 2. Configuration
@@ -47,7 +57,36 @@ ny = 1
 mom6_template = "data/cache/scratch_test/mom6.nc"
 cbed_pattern  = "data/cache/cbed*.nc"
 output        = "data/cbed_results.nc"
+
+[cbed]
+method = "steady_state"   # or "newton_krylov"
+model  = "fast"           # cbed2py model for newton_krylov
 ```
+
+### CBED method
+
+`[cbed] method` selects how `cbed_wrapper.py` computes the sediment state at each point:
+
+| `method` | Model | Forcing | Result |
+|----------|-------|---------|--------|
+| `steady_state` (default, original behavior) | CBED v1, `src/cbed_R/cbed_v1_func.R` | time mean of the COBALT fields | steady state |
+| `newton_krylov` | cbed2py transient model (`model = "fast"` or `"v2"`) | one-year climatology (by day of year, or by month for monthly output) of the COBALT bottom fields, repeated every year | periodic state at Jan 1, found by Jacobian-free Newton-Krylov (`cbed2py.spinup.newton_krylov_spinup`) |
+
+With `newton_krylov`:
+
+- J.OM, O2.w, NO3.w, DIC.w (from `cobalt_btm`), and NH4.w and TAlk.w (from `cobalt_tr`) vary with the seasonal cycle. Temperature and salinity stay at their mean, because `model_reader.py` caches `mom6.nc` already averaged over time.
+- `[cbed.params]` overrides `cbed2py` parameters such as `k.NOx`, `k.ODUox` and the `jpoc_mode_*` options. `[cbed.spinup]` passes keywords to `newton_krylov_spinup`, such as `max_newton`, `gmres_iter`, `tol_imbalance`, `tol_f` and `n_sub`.
+- Points that fail stay NaN, as with `steady_state`. Points that don't converge keep the best state found, and the per-point diagnostics flag them.
+
+Cost per grid point, measured on one test point with a seasonal J.OM and temperature:
+
+| | Time | Peak memory per worker |
+|---|---|---|
+| `steady_state` (v1) | 1.8 s | 180 MB |
+| `newton_krylov`, `fast` (~50 model years) | 14 s (~8×) | 240 MB |
+| `newton_krylov`, `v2` (~90 model years) | 95 s (~55×) | 215 MB |
+
+Raise `--time` in `execute.sh` to match. Memory per worker barely changes.
 
 
 
@@ -90,7 +129,9 @@ The domain is split into `nx × ny` tiles (default `8 × 1`). Run `cbed_wrapper.
 
 ### `cbed_wrapper.py`
 
-Runs the CBED model for one domain chunk, distributing grid points across multiple processes. Chunking parameters are read from `config.toml`. Output is saved to `data/cache/cbed_mom6_<chunk>.nc`. 
+Runs the CBED model for one domain chunk, distributing grid points across multiple processes. Chunking parameters and the CBED method are read from `config.toml`. Output is saved to `data/cache/cbed_mom6_<chunk>.nc`.
+
+Per-point diagnostics go to `data/cache/spinup_diag_<chunk>.nc`: `status` (1 ok/converged, 0 not converged, -1 failed, -2 land), `wall_time` [s] and, for `newton_krylov`, `model_years`, `newton_steps`, `imbalance` and `rms_G`. 
 
 ```bash
 python scripts/cbed_wrapper.py <nproc> <chunk>

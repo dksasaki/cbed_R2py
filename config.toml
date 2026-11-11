@@ -16,3 +16,29 @@ output        = "data/cbed_results.nc"
 [chunks]
 nx = 5
 ny = 1
+
+[cbed]
+# method = "steady_state"   original: CBED v1 steady state (src/cbed_R/cbed_v1_func.R)
+#                           with the time-mean forcing
+# method = "newton_krylov"  cbed2py transient model spun up to its periodic state
+#                           under the one-year climatology of the forcing
+#                           (Jacobian-free Newton-Krylov, cbed2py.spinup)
+method = "steady_state"
+model  = "fast"             # cbed2py model for newton_krylov: "fast" (~7x quicker) or "v2"
+
+# cbed2py parameter overrides (newton_krylov only; per-point forcing, porosity,
+# temp, S, w and depth are set by cbed_wrapper.py)
+[cbed.params]
+"k.NOx"   = 1e6             # as scripts/default_CBED_pars.R (cbed2py default: 2e5)
+"k.ODUox" = 1e6             # as scripts/default_CBED_pars.R (cbed2py default: 1e5)
+jpoc_mode_reactivity    = "trailing_mean"   # instantaneous | longterm_mean | trailing_mean
+jpoc_mode_bioturbation  = "trailing_mean"
+jpoc_mode_bioirrigation = "trailing_mean"
+
+# keywords of cbed2py.spinup.newton_krylov_spinup (newton_krylov only)
+[cbed.spinup]
+max_newton    = 10          # the test point needed 8
+gmres_iter    = 20
+tol_imbalance = 0.05        # umol C cm-2 yr-1
+tol_f         = 3e-5
+n_sub         = 12
