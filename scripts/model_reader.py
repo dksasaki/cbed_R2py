@@ -7,7 +7,7 @@ import numpy as np
 import logging
 from dask.distributed import Client, LocalCluster
 from dask.distributed import progress, wait
-
+import sys
 log = logging.getLogger(__name__)
 
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
@@ -21,7 +21,10 @@ os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 _client = None
 _cluster = None
 
-def get_client(n_workers=16, threads_per_worker=1, memory_limit='32GB'):
+def get_client(n_workers=56, threads_per_worker=1, memory_limit='128GB'):
+
+    if not hasattr(sys.modules['__main__'], '__spec__'):
+        sys.modules['__main__'].__spec__ = None
     global _client, _cluster
     if _client is None:
         _cluster = LocalCluster(n_workers=n_workers,
@@ -73,11 +76,11 @@ def read_mom6cobalt(paths, ftopo, varbs, chunk_dict=None, topog=False):
         # make sure that cobalt3d, mom63d and mom62d work with this function
         if chunk_dict is None:
             if 'z_l' in ds:
-                chunk_dict = dict(xh=100, yh=100, time=20, z_l=5)
-            elif 'z_l' in ds:
-                chunk_dict = dict(xh=100, yh=100, time=20, zl=5)
+                chunk_dict = dict(xh=100, yh=100, time=-1, z_l=-1)
+            elif 'zl' in ds:
+                chunk_dict = dict(xh=100, yh=100, time=-1, zl=1)
             else:
-                chunk_dict = dict(xh=100, yh=100, time=20)
+                chunk_dict = dict(xh=100, yh=100, time=-1)
         else:
             assert type(chunk_dict) is dict,"chunk_dict must either None or type(dict)"
             
@@ -134,13 +137,29 @@ def _variables_model():
         "fpsm_btm",         # small phyto P
         "fpmd_btm",         # medium phyto P
         "fplg_btm",         # large phyto P
-
         # Lithogenic
         "flithdet_btm",     # lithogenic detritus
     ]
     varbs_mom6   = ['temp', 'salt']
     varbs_cobalt_tr = ['nh4', 'talk']
     return varbs_cobalt_btm, varbs_mom6, varbs_cobalt_tr
+
+def _persist_and_save(ds, fsave):
+    ds1 = ds.persist()
+    progress(ds1)
+    wait(ds1)
+    log.info(f"Saving to {fsave}")
+    ds1.to_netcdf(fsave)
+    return ds1
+
+
+def _cached(fsave, fn):
+    if glob.glob(fsave):
+        log.info(f"Loading from cache: {fsave}")
+        return xr.open_dataset(fsave, chunks={})
+    log.info(f"Cache miss, computing: {fsave}")
+    return fn(fsave)
+
 
 def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tuple:
     """
@@ -188,37 +207,53 @@ def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tupl
 
     varbs_cobalt_btm, varbs_mom6, varbs_cobalt_tr = _variables_model()
 
-    def _persist_and_save(ds, fsave):
-        ds1 = ds.persist()
-        progress(ds1)
-        wait(ds1)
-        log.info(f"Saving to {fsave}")
-        ds1.to_netcdf(fsave)
-        return ds1
-
-    def _cached(fsave, fn):
-        if glob.glob(fsave):
-            log.info(f"Loading from cache: {fsave}")
-            return xr.open_dataset(fsave, chunks={})
-        log.info(f"Cache miss, computing: {fsave}")
-        return fn(fsave)
-
     def _read_cobalt_btm(fsave):
-        fpaths = osp.join(fpath, '*cobalt_btm.nc')
-        ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_btm)
-        return _persist_and_save(ds, fsave)
+        fpaths = osp.join(fpath, '*cobalt_btm*.nc')
+        ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_btm,
+                              chunk_dict=dict(xh=50, yh=50, time=-1))
+        ds_mean = ds.mean(dim='time')
+        for v in ds.data_vars:
+            ds_mean[v].attrs = ds[v].attrs
+        return _persist_and_save(ds_mean, fsave)
 
     def _read_cobalt_tr(fsave):
-        fpaths = osp.join(fpath, '*cobalt_tracers.nc')
-        ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_tr, chunk_dict={'z_l': 52})
-        ds = ds.ffill(dim='z_l').bfill(dim='z_l').isel(z_l=-1)
-        return _persist_and_save(ds, fsave)
+        fpaths = osp.join(fpath, '*cobalt_tracers*.nc')
+        ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_tr,
+                              chunk_dict=dict(xh=50, yh=50, time=-1, z_l=-1),
+                              topog=True)
+        ds = ds.where(ds.z_l < ds.depth)
+        ds = ds.ffill(dim='z_l')
+        ds_mean = ds.isel(z_l=-1).mean(dim='time')
+        for v in ds.data_vars:
+            if v in ds_mean:
+                ds_mean[v].attrs = ds[v].attrs
+        return _persist_and_save(ds_mean, fsave)
 
     def _read_mom(fsave):
-        fpaths = osp.join(fpath, '*ocean_daily.nc')
-        ds = read_mom6cobalt(fpaths, ftopo, varbs_mom6, chunk_dict={'zl': 1})
-        ds = ds.isel(zl=-1).mean(dim='time')
-        return _persist_and_save(ds, fsave)
+        fpaths = osp.join(fpath, '*ocean_daily_*.nc')
+        ds = read_mom6cobalt(fpaths, ftopo, varbs_mom6,
+                              chunk_dict=dict(xh=50, yh=50, time=-1, zl=-1))
+        ds_mean = ds.isel(zl=-1).mean(dim='time')
+        for v in ds.data_vars:
+            ds_mean[v].attrs = ds[v].attrs
+        return _persist_and_save(ds_mean, fsave)
+    
+    # def _read_cobalt_btm(fsave):
+    #     fpaths = osp.join(fpath, '*cobalt_btm*.nc')
+    #     ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_btm)
+    #     return _persist_and_save(ds, fsave)
+
+    # def _read_cobalt_tr(fsave):
+    #     fpaths = osp.join(fpath, '*cobalt_tracers*.nc')
+    #     ds = read_mom6cobalt(fpaths, ftopo, varbs_cobalt_tr, chunk_dict={'z_l': 52})
+    #     ds = ds.ffill(dim='z_l').bfill(dim='z_l').isel(z_l=-1)
+    #     return _persist_and_save(ds, fsave)
+
+    # def _read_mom(fsave):
+    #     fpaths = osp.join(fpath, '*ocean_daily_*.nc')
+    #     ds = read_mom6cobalt(fpaths, ftopo, varbs_mom6, chunk_dict={'zl': 1})
+    #     ds = ds.isel(zl=-1).mean(dim='time')
+    #     return _persist_and_save(ds, fsave)
 
     dscobalt_btm = _cached(osp.join(cache_dir, 'cobalt_btm.nc'), _read_cobalt_btm)
     dscobalt_tr  = _cached(osp.join(cache_dir, 'cobalt_tr.nc'),  _read_cobalt_tr)
@@ -231,12 +266,85 @@ def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tupl
     return ds_dict
 
 
+def annual_climatology(ds):
+    """
+    Mean seasonal cycle of a time series, on coordinate 'phase' [yr] in (0, 1)
+    (phase 0 = Jan 1): by day of year (day 366 dropped) for sub-monthly data,
+    by month otherwise. Multi-year input is averaged over the years.
+    """
+    if ds.sizes['time'] < 2:
+        raise ValueError('a climatology needs time-varying data (time size >= 2)')
+    dt_days = np.median(np.diff(ds.time.values)) / np.timedelta64(1, 'D')
+    if dt_days < 20:
+        clim = ds.groupby('time.dayofyear').mean('time')
+        clim = clim.sel(dayofyear=clim.dayofyear <= 365)
+        phase = (clim.dayofyear.values - 0.5) / 365
+        clim = clim.rename(dayofyear='phase')
+    else:
+        clim = ds.groupby('time.month').mean('time')
+        phase = (clim.month.values - 0.5) / 12
+        clim = clim.rename(month='phase')
+    clim = clim.assign_coords(phase=phase)
+    clim['phase'].attrs = {'units': 'yr', 'long_name': 'fraction of the year (0 = Jan 1)'}
+    for v in ds.data_vars:
+        if v in clim:
+            clim[v].attrs = ds[v].attrs
+    return clim
+
+
+def read_climatology(root_dir: str, fpath: str, ftopo: str, cache_dir: str) -> dict:
+    """
+    One-year climatology (annual_climatology) of the bottom fields that drive
+    the seasonal CBED forcing of method 'newton_krylov' in cbed_wrapper.py.
+    Cached like read_variables:
+      cobalt_btm_clim.nc : fntot_btm (= fndet+fndi+fnsm+fnmd+fnlg_btm),
+                           btm_o2, btm_no3, btm_dic           (phase, yh, xh)
+      cobalt_tr_clim.nc  : nh4, talk at the bottom level      (phase, yh, xh)
+    The bottom level of cobalt_tracers is selected as in read_variables.
+    Delete the cache files to recompute them (e.g. after changing fpath).
+
+    Returns dict with 'dscobalt_btm' and 'dscobalt_tr'.
+    """
+    _ = get_client()
+
+    if not osp.exists(fpath):
+        raise FileNotFoundError(f"Model output path not found: {fpath}")
+    if not osp.exists(ftopo):
+        raise FileNotFoundError(f"Topography file not found: {ftopo}")
+    os.makedirs(cache_dir, exist_ok=True)
+
+    fn_comps = ['fndet_btm', 'fndi_btm', 'fnsm_btm', 'fnmd_btm', 'fnlg_btm']
+
+    def _clim_cobalt_btm(fsave):
+        fpaths = osp.join(fpath, '*cobalt_btm*.nc')
+        ds = read_mom6cobalt(fpaths, ftopo, fn_comps + ['btm_o2', 'btm_no3', 'btm_dic'],
+                             chunk_dict=dict(xh=50, yh=50, time=-1))
+        out = ds[['btm_o2', 'btm_no3', 'btm_dic']]
+        out['fntot_btm'] = sum(ds[v] for v in fn_comps)
+        out['fntot_btm'].attrs = {'units': ds['fndet_btm'].attrs.get('units', ''),
+                                  'long_name': 'total N sinking flux to bottom '
+                                               '(fndet+fndi+fnsm+fnmd+fnlg)'}
+        return _persist_and_save(annual_climatology(out).astype('float32'), fsave)
+
+    def _clim_cobalt_tr(fsave):
+        fpaths = osp.join(fpath, '*cobalt_tracers*.nc')
+        ds = read_mom6cobalt(fpaths, ftopo, ['nh4', 'talk'],
+                             chunk_dict=dict(xh=50, yh=50, time=-1, z_l=-1),
+                             topog=True)
+        ds = ds.where(ds.z_l < ds.depth)
+        ds = ds.ffill(dim='z_l').isel(z_l=-1)[['nh4', 'talk']]
+        return _persist_and_save(annual_climatology(ds).astype('float32'), fsave)
+
+    return {'dscobalt_btm': _cached(osp.join(cache_dir, 'cobalt_btm_clim.nc'), _clim_cobalt_btm),
+            'dscobalt_tr':  _cached(osp.join(cache_dir, 'cobalt_tr_clim.nc'),  _clim_cobalt_tr)}
+
+
 if __name__ =='__main__':
     
     ROOT_DIR = '/projects/schultz/d.sasaki/km_scale_model/' + \
                 'mom6cobalt_25th/20240723_zstar/tasks/' + \
                 '202603_cbed_R2py'
-    FPATH     = '/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw'
+    FPATH     = '/home/d.sasaki/scratch/temp/202609_delete/outputs_raw/iteration1'
     FTOPO     = '/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc'
     CACHE_DIR = osp.join(ROOT_DIR, 'data/cache/scratch_test')
 

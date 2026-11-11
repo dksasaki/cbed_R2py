@@ -1,11 +1,12 @@
 [paths]
 root_dir   = "/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zstar/tasks/202603_cbed_R2py" 
-fpath      = "/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw"
+fpath      = "/home/d.sasaki/scratch/mom_experiments2/202606_sobolm/20260622_nocbed/outputs_raw"
 ftopo      = "/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc"
 fgrd       = "/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd"
-ftemplate  = "/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc"
+ftemplate  = "/home/d.sasaki/scratch/mom_experiments2/202607_kelp_delete/outputs_raw0/20180101.ocean_daily_2018_01.nc"
 fout       = "data/cache/porosity_neus25.nc"
-cache_dir  = "data/cache"
+cache_dir  = "data/cache/scratch_test"
+
 
 
 [stitch]
@@ -18,19 +19,18 @@ nx = 5
 ny = 1
 
 [cbed]
-# method = "steady_state"   original: CBED v1 steady state (src/cbed_R/cbed_v1_func.R)
-#                           with the time-mean forcing
+# method = "steady_state"   CBED v2 steady state (cbed2py/model/cbed_v2_func.R in
+#                           cbedr2py_1d) with the time-mean forcing
 # method = "newton_krylov"  cbed2py transient model spun up to its periodic state
 #                           under the one-year climatology of the forcing
 #                           (Jacobian-free Newton-Krylov, cbed2py.spinup)
 method = "steady_state"
 model  = "fast"             # cbed2py model for newton_krylov: "fast" (~7x quicker) or "v2"
 
-# cbed2py parameter overrides (newton_krylov only; per-point forcing, porosity,
-# temp, S, w and depth are set by cbed_wrapper.py)
+# cbed2py parameter overrides (newton_krylov only). The point setup (forcing,
+# porosity, temp, S, w, depth, f.OM1-3) is set by cbed_wrapper.py as for
+# steady_state.
 [cbed.params]
-"k.NOx"   = 1e6             # as scripts/default_CBED_pars.R (cbed2py default: 2e5)
-"k.ODUox" = 1e6             # as scripts/default_CBED_pars.R (cbed2py default: 1e5)
 jpoc_mode_reactivity    = "trailing_mean"   # instantaneous | longterm_mean | trailing_mean
 jpoc_mode_bioturbation  = "trailing_mean"
 jpoc_mode_bioirrigation = "trailing_mean"

@@ -1,9 +1,9 @@
 get_default_pars <- function() {
   list(
     J.OM                         = 11.05*365/10, # derived from bc.data
-    k.NOx                        = 1e6,
+    k.NOx                        = 2e5,
     k.ana                        = 1e5,
-    k.ODUox                      = 1e6,
+    k.ODUox                      = 1e5,
     Ks.O2                        = 0.008,
     Ks.NO3                       = 0.001,
     K.equilNH4                   = 1.6,

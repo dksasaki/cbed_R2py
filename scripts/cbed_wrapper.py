@@ -14,6 +14,9 @@ import model_reader as mr
 from porosity2cbed import porosity_main
 import tomllib
 import time
+# R model files of cbed2py (cbedr2py_1d): cbed_v2_func.R (steady state) and
+# the transient models used by method 'newton_krylov'
+from cbed2py import MODEL_DIR as CBED2PY_MODEL_DIR
 
 
 def load_config(config_path='config.toml'):
@@ -32,6 +35,13 @@ def load_config(config_path='config.toml'):
     CACHE_DIR = paths['cache_dir']
     nx_chunk  = chunks['nx']
     ny_chunk  = chunks['ny']
+
+    # inputs that must already exist
+    for name, p in [('root_dir', ROOT_DIR), ('fpath', FPATH), ('ftopo', FTOPO),
+                     ('fgrd', FGRD), ('ftemplate', FTEMPLATE)]:
+        if not osp.exists(p):
+            raise FileNotFoundError(f"{name} not found: {p}")
+
 
     return ROOT_DIR, FPATH, FTOPO, FGRD, FTEMPLATE, FOUT, CACHE_DIR, nx_chunk, ny_chunk
 
@@ -104,23 +114,21 @@ def init_worker():
         return
     import rpy2.robjects as ro
     r = ro.r
-    r(f'source("{ROOT_DIR}/src/cbed_R/cbed_v1_func.R")')
+    r(f'source("{CBED2PY_MODEL_DIR}/cbed_v2_func.R")')   # CBED v2 steady state (cbedr2py_1d)
     r(f'source("{ROOT_DIR}/scripts/default_CBED_pars.R")')
 
 
-def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont, start_r=False):
-
-    if start_r is False:
-        global r
-
-    print(f"Running point i={i} j={j} cont={cont}", flush=True)
-
+def point_params(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i, j):
+    """
+    CBED parameters of point (i, j) from the time-mean fields: forcing, w,
+    porosity, depth and the depth-dependent f.OM1-3. Used by both methods.
+    """
     dsmom_b = dsmom_a.isel(xh=i, yh=j)
     dscob2_b = dscob2_a.isel(xh=i, yh=j)
     dscob_b = dscob_a.isel(xh=i, yh=j)
     dsporo_b = dsporo_a.isel(xh=i, yh=j)
+    dsdepth_b = dsdepth_a.isel(xh=i, yh=j)
 
-    ocean_depth = xr.open_dataset(FTOPO)
     btm_temp = float(dsmom_b['temp'].values)
     btm_O2   = float(dscob_b['btm_o2'].values)
     btm_no3  = float(dscob_b['btm_no3'].values)
@@ -159,6 +167,38 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont, start_r=False):
         ) / 1e4 * 60*60*24*365  # cm/yr
 
     porosity = float(dsporo_b['porosity'].values)
+    btm_depth = float(dsdepth_b['depth'].values)
+
+    _default_pars = {}
+    _default_pars["J.OM"]    = max([0, fntot])    * 6.625*1000*3600*24 *365/10
+    _default_pars["O2.w"]    = max([0, btm_O2])   * 1e3
+    _default_pars["w"]       = max([0, w_tem/(1-porosity)])
+    _default_pars["temp"]    = max([0, btm_temp])
+    _default_pars["por.0"]   = max([0, porosity])
+    _default_pars["por.inf"] = max([0, porosity])
+    _default_pars["NO3.w"]   = max([0, btm_no3])  * 1e3
+    _default_pars["NH4.w"]   = max([0, btm_nh4])  * 1e3
+    _default_pars["DIC.w"]     = max([0, btm_dic]) * 1e3
+    _default_pars["TAlk.w"]  = max([0, btm_talk])
+    _default_pars["S"]       = max([0, btm_salt])
+    _default_pars["depth"]   = max([0, btm_depth])
+
+    # depth-dependent OM reactivity pool fractions (ss_global_parallel.R)
+    depth_for_fom = max(1e-6, _default_pars["depth"])
+    f_om1 = min(0.80, 0.65*(100/depth_for_fom)**0.5)
+    f_om3 = max(0.03, 0.04*(100/depth_for_fom)**-0.3)
+    _default_pars["f.OM1"] = f_om1
+    _default_pars["f.OM3"] = f_om3
+    _default_pars["f.OM2"] = 1.0 - (f_om1 + f_om3)
+    return _default_pars
+
+
+def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i,j,cont, start_r=False):
+
+    if start_r is False:
+        global r
+
+    print(f"Running point i={i} j={j} cont={cont}", flush=True)
 
     if start_r:
         source = lambda x: f"source(\"{x}\")"
@@ -170,34 +210,16 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a,dsporo_a, i,j,cont, start_r=False):
     r_pars = r('get_default_pars()')
     _default_pars = r2dict(r_pars)
     # edit _default_pars as needed
-
-    _default_pars["J.OM"]    = max([0, fntot])    * 6.625*1000*3600*24 *365/10
-    _default_pars["O2.w"]    = max([0, btm_O2])   * 1e3
-    _default_pars["w"]       = max([0, 0.0359])
-    _default_pars["temp"]    = max([0, btm_temp])
-    _default_pars["por.0"]   = max([0, porosity])
-    _default_pars["por.inf"] = max([0, porosity])
-    _default_pars["NO3.w"]   = max([0, btm_no3])  * 1e3
-    _default_pars["NH4.w"]   = max([0, btm_nh4])  * 1e3
-    _default_pars["DIC"]     = max([0, btm_dic])
-    _default_pars["TAlk.w"]  = max([0, btm_talk])
-    _default_pars["S"]       = max([0, btm_salt])
-    _default_pars["depth"]   = max([0, 200])
+    _default_pars.update(point_params(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i, j))
 
     pars_items = ["J.OM", "O2.w", "w", "temp", "por.0",
-                  "por.inf", "NO3.w", "NH4.w", "DIC",
-                  "TAlk.w", "S", "depth"]
-    
+                  "por.inf", "NO3.w", "NH4.w", "DIC.w",
+                  "TAlk.w", "S", "depth", "f.OM1", "f.OM2", "f.OM3"]
+
 
 
     # _default_pars
     r_pars_updated = pars2r(_default_pars)
-
-    r("""
-    manual_control_bioturbation <- F
-    manual_control_bioirrigation <- F
-    manual_OM_decay_rate <- F
-    """)
 
     ro.globalenv["py_pars"] = r_pars_updated
     try:
@@ -225,43 +247,21 @@ DIAG_KEYS = ('status', 'wall_time', 'model_years', 'newton_steps', 'imbalance', 
 # status: 1 converged, 0 not converged (best state kept), -1 failed, -2 land
 
 
-def forcing_fields(dscob_t, dscob2_t):
+def forcing_fields(clim_btm, clim_tr):
     """
-    Time-varying CBED forcing [CBED units] from the COBALT bottom fields:
-      btm: J.OM, O2.w, NO3.w, DIC.w   (cobalt_btm)
-      tr : NH4.w, TAlk.w              (cobalt_tracers, bottom level)
-    Concentrations mol kg-1 -> mM (x1e3), as done for O2/NO3/NH4 in cbed_wrapped.
+    Time-varying CBED forcing [CBED units] from the COBALT climatologies
+    (mr.read_climatology):
+      btm: J.OM, O2.w, NO3.w, DIC.w   (cobalt_btm_clim.nc)
+      tr : NH4.w, TAlk.w              (cobalt_tr_clim.nc, bottom level)
+    Concentrations mol kg-1 -> mM (x1e3), as done for O2/NO3/NH4/DIC in point_params.
     """
-    fntot = (dscob_t['fndet_btm'] + dscob_t['fndi_btm'] + dscob_t['fnsm_btm'] +
-             dscob_t['fnmd_btm'] + dscob_t['fnlg_btm'])
-    btm = xr.Dataset({'J.OM':  fntot * J_CONV,
-                      'O2.w':  dscob_t['btm_o2'] * 1e3,
-                      'NO3.w': dscob_t['btm_no3'] * 1e3,
-                      'DIC.w': dscob_t['btm_dic'] * 1e3})
-    tr = xr.Dataset({'NH4.w':  dscob2_t['nh4'] * 1e3,
-                     'TAlk.w': dscob2_t['talk'] * 1e3})
+    btm = xr.Dataset({'J.OM':  clim_btm['fntot_btm'] * J_CONV,
+                      'O2.w':  clim_btm['btm_o2'] * 1e3,
+                      'NO3.w': clim_btm['btm_no3'] * 1e3,
+                      'DIC.w': clim_btm['btm_dic'] * 1e3})
+    tr = xr.Dataset({'NH4.w':  clim_tr['nh4'] * 1e3,
+                     'TAlk.w': clim_tr['talk'] * 1e3})
     return btm, tr
-
-
-def annual_climatology(ds):
-    """
-    Mean seasonal cycle of a time series, on coordinate 'phase' [yr] in (0, 1)
-    (phase 0 = Jan 1): by day of year (day 366 dropped) for sub-monthly data,
-    by month otherwise. Multi-year input is averaged over the years.
-    """
-    if ds.sizes['time'] < 2:
-        raise ValueError('newton_krylov needs time-varying forcing (time size >= 2)')
-    dt_days = np.median(np.diff(ds.time.values)) / np.timedelta64(1, 'D')
-    if dt_days < 20:
-        clim = ds.groupby('time.dayofyear').mean('time')
-        clim = clim.sel(dayofyear=clim.dayofyear <= 365)
-        phase = (clim.dayofyear.values - 0.5) / 365
-        clim = clim.rename(dayofyear='phase')
-    else:
-        clim = ds.groupby('time.month').mean('time')
-        phase = (clim.month.values - 0.5) / 12
-        clim = clim.rename(month='phase')
-    return clim.assign_coords(phase=phase)
 
 
 def _clean(x, name):
@@ -285,7 +285,8 @@ def point_forcing(clim_btm_b, clim_tr_b):
     return frc
 
 
-def cbed_nk_wrapped(dsmom_a, clim_btm_a, clim_tr_a, dsporo_a, i, j, cont):
+def cbed_nk_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a,
+                    clim_btm_a, clim_tr_a, i, j, cont):
     """
     CBED at one point with method 'newton_krylov'. Returns (ds, diag):
     ds   the periodic state at phase 0 (Jan 1), same layout as cbed_wrapped
@@ -294,20 +295,14 @@ def cbed_nk_wrapped(dsmom_a, clim_btm_a, clim_tr_a, dsporo_a, i, j, cont):
     from cbed2py.spinup import newton_krylov_spinup
 
     print(f"Running point i={i} j={j} cont={cont} (newton_krylov)", flush=True)
-    dsmom_b = dsmom_a.isel(xh=i, yh=j)
     frc = point_forcing(clim_btm_a.isel(xh=i, yh=j), clim_tr_a.isel(xh=i, yh=j))
-    porosity = float(dsporo_a.isel(xh=i, yh=j)['porosity'].values)
 
     params = dict(CBED_CFG['params'])
-    # constant values: annual means of the forcing (steady-state initial
-    # condition, and J for jpoc mode 'longterm_mean')
+    # same point setup as steady_state (w, porosity, depth, f.OM1-3, temp, S) ...
+    params.update(point_params(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i, j))
+    # ... with the constant forcing values = annual means of the climatology
+    # (steady-state initial condition, and J for jpoc mode 'longterm_mean')
     params.update({v: float(np.mean(frc[v])) for v in frc if v != 'time'})
-    params.update({'temp':    max(0, float(dsmom_b['temp'].values)),
-                   'S':       max(0, float(dsmom_b['salt'].values)),
-                   'por.0':   max(0, porosity),
-                   'por.inf': max(0, porosity),
-                   'w':       0.0359,
-                   'depth':   200.0})
 
     spin = {'max_newton': 10, 'verbose': False, **CBED_CFG['spinup']}
     y, hist, _ = newton_krylov_spinup(params, frc, **spin)
@@ -337,14 +332,15 @@ def run_point(args):
     t0 = time.perf_counter()
     if CBED_CFG['method'] == 'newton_krylov':
         try:
-            ds, d = cbed_nk_wrapped(dsmom_a, clim_btm_a, clim_tr_a, dsporo_a, i, j, cont)
+            ds, d = cbed_nk_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a,
+                                    clim_btm_a, clim_tr_a, i, j, cont)
             diag.update(d)
         except Exception as e:
             print(f"FAILED i={i} j={j} cont={cont}: {e}", flush=True)
             ds = empty_ds(cont)
             diag['status'] = -1
     else:
-        ds = cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, i, j, cont)
+        ds = cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i, j, cont)
         diag['status'] = -1 if np.isnan(ds['OM1'].values).all() else 1
     diag['wall_time'] = time.perf_counter() - t0
     return cont, ds, diag
@@ -363,9 +359,10 @@ def chunk_bounds(chunk, ny, nx, n_chunks_x=2, n_chunks_y=2):
     return x_edges[ci], x_edges[ci + 1], y_edges[cj], y_edges[cj + 1]
 
 
-def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, ny, nx, n_chunks_x=2, n_chunks_y=2):
+def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, dsdepth, ny, nx, n_chunks_x=2, n_chunks_y=2):
+    dsdepth = dsdepth.rename(nx='xh', ny='yh')
     if chunk == 0:
-        return dsmom, dscob, dscob2, dsporo, np.arange(nx), np.arange(ny), np.arange(nx), np.arange(ny)
+        return dsmom, dscob, dscob2, dsporo, dsdepth, np.arange(nx), np.arange(ny), np.arange(nx), np.arange(ny)
 
     x_start, x_end, y_start, y_end = chunk_bounds(chunk, ny, nx, n_chunks_x, n_chunks_y)
 
@@ -374,12 +371,13 @@ def get_chunk(chunk, dsmom, dscob, dscob2, dsporo, ny, nx, n_chunks_x=2, n_chunk
     ix  = np.arange(x_end - x_start)
     iy  = np.arange(y_end - y_start)
 
-    dsmom_a  = dsmom.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
-    dscob_a  = dscob.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
-    dscob2_a = dscob2.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
-    dsporo_a = dsporo.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dsmom_a   = dsmom.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dscob_a   = dscob.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dscob2_a  = dscob2.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dsporo_a  = dsporo.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
+    dsdepth_a = dsdepth.isel(xh=slice(x_start, x_end), yh=slice(y_start, y_end))
 
-    return dsmom_a, dscob_a, dscob2_a, dsporo_a, ivx, ivy, ix, iy
+    return dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, ivx, ivy, ix, iy
 
 if __name__ == '__main__':
 
@@ -392,7 +390,7 @@ if __name__ == '__main__':
 
 
 
-    script_path = osp.join(ROOT_DIR,'src/cbed_R/cbed_v1_func.R')
+    script_path = osp.join(CBED2PY_MODEL_DIR, 'cbed_v2_func.R')
 
     # mr.read_variables will need three datasets containing mom6 and cobalt info
     # the datasets MUST BE NAMED AS: 
@@ -412,9 +410,15 @@ if __name__ == '__main__':
     ds_poro.load()
     print(ds_dict.keys(), flush=True)
 
+    # ocean_topog.nc's 'depth' variable is already on the xh/yh tracer grid,
+    # so it needs no regridding (unlike porosity, which comes in on lon/lat
+    # and is regridded onto xh/yh inside porosity_main).
+    ds_depth = xr.open_dataset(FTOPO)[['depth']]
+    ds_depth.load()
+
     print("reading datasets")
-    dscob  = ds_dict['dscobalt_btm'].mean(dim='time')
-    dscob2 = ds_dict['dscobalt_tr'].mean(dim='time')
+    dscob  = ds_dict['dscobalt_btm']#.mean(dim='time')
+    dscob2 = ds_dict['dscobalt_tr']#.mean(dim='time')
     dsmom  = ds_dict['dsmom']
 
     dscob.load()
@@ -425,11 +429,12 @@ if __name__ == '__main__':
     ny, nx = dscob['btm_o2'].values.shape
     print(f"grid shape: ny={ny} nx={nx}", flush=True)
 
-    dsmom_a, dscob_a, dscob2_a, dsporo_a,ivx, ivy, ix, iy = get_chunk(chunk,
+    dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, ivx, ivy, ix, iy = get_chunk(chunk,
                                                    dsmom,
                                                    dscob,
                                                    dscob2,
                                                    ds_poro,
+                                                   ds_depth,
                                                    ny,
                                                    nx,
                                                    n_chunks_x=nx_chunk,
@@ -437,15 +442,17 @@ if __name__ == '__main__':
 
     print(f"chunk={chunk} ix={ix[[0,-1]]} iy={iy[[0,-1]]}", flush=True)
 
-    # one-year forcing climatology of the chunk (method 'newton_krylov' only)
+    # one-year forcing climatology of the chunk (method 'newton_krylov' only);
+    # computed from the raw files once and cached by model_reader
     clim_btm_a = clim_tr_a = None
     if CBED_CFG['method'] == 'newton_krylov':
+        clim_dict = mr.read_climatology(ROOT_DIR, FPATH, FTOPO, CACHE_DIR)
         x0, x1, y0, y1 = chunk_bounds(chunk, ny, nx, n_chunks_x=nx_chunk, n_chunks_y=ny_chunk)
         sub = dict(xh=slice(x0, x1), yh=slice(y0, y1))
-        btm, tr = forcing_fields(ds_dict['dscobalt_btm'].isel(**sub),
-                                 ds_dict['dscobalt_tr'].isel(**sub))
-        clim_btm_a = annual_climatology(btm).astype('float32').load()
-        clim_tr_a  = annual_climatology(tr).astype('float32').load()
+        btm, tr = forcing_fields(clim_dict['dscobalt_btm'].isel(**sub),
+                                 clim_dict['dscobalt_tr'].isel(**sub))
+        clim_btm_a = btm.astype('float32').load()
+        clim_tr_a  = tr.astype('float32').load()
         print(f"forcing climatology: {clim_btm_a.sizes['phase']} phases (cobalt_btm), "
               f"{clim_tr_a.sizes['phase']} phases (cobalt_tr)", flush=True)
 
@@ -519,4 +526,3 @@ if __name__ == '__main__':
     print(f"points: {np.sum(ok == 1)} ok, {np.sum(ok == 0)} not converged, "
           f"{np.sum(ok == -1)} failed, {np.sum(ok == -2)} land; "
           f"mean wall time {np.nanmean(ds_diag['wall_time'].values):.2f} s/point", flush=True)
-    

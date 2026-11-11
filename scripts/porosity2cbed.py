@@ -4,6 +4,22 @@ import os
 import os.path as osp
 import xesmf as xe
 import glob
+import tomllib
+
+
+def load_config(config_path='config.toml'):
+    with open(config_path, 'rb') as f:
+        cfg = tomllib.load(f)
+
+    paths = cfg['paths']
+
+    ROOT_DIR  = paths['root_dir']
+    FTOPO     = paths['ftopo']
+    FGRD      = paths['fgrd']
+    FTEMPLATE = paths['ftemplate']
+    FOUT      = paths['fout']
+
+    return ROOT_DIR, FTOPO, FGRD, FTEMPLATE, FOUT
 
 
 
@@ -21,8 +37,8 @@ class PorosityRegridder:
 
         ds1    = mr.read_mom6cobalt(self.fpath, self.ftopo, varbs=[varbs])
         has_xy = self.fgrd.endswith('.grd')
-        chunks = dict(x=400, y=400) if has_xy else dict(lon=200, lat=200)
-        dsgrd  = xr.open_dataset(self.fgrd, chunks=chunks)
+        # chunks = dict(x=200, y=200) if has_xy else dict(lon=50, lat=50)
+        dsgrd  = xr.open_dataset(self.fgrd)#, chunks=chunks)
 
         lon_dim = 'x'   if has_xy else 'lon'
         lat_dim = 'y'   if has_xy else 'lat'
@@ -39,6 +55,7 @@ class PorosityRegridder:
 
         reg   = xe.Regridder(ds, ds1.rename(xh='lon', yh='lat'), 'bilinear')
         dsout = reg(ds)
+        dsout.load()
 
         dsout[varb] = (dsout[varb]
                        .ffill(dim='lon').ffill(dim='lat')
@@ -109,17 +126,16 @@ def porosity_main(FGRD=None,
                   FOUT=None,
                   save=False,
                   usecache=True):
-    print('WARNING, paths are hardcoded in porosity_main function [in porosity2cbed.py]')
-    # _ = mr.get_client()
+    ROOT_DIR_CFG, FTOPO_CFG, FGRD_CFG, FTEMPLATE_CFG, FOUT_CFG = load_config()
 
     f = lambda x,y: x if y is None else y
 
-    FGRD      = f('/home/d.sasaki/schultz/data/cbed_supporting_data/subhadeep/globalporosity_map.grd' , FGRD)
-    ROOTDIR   = f('/projects/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/20240723_zstar/tasks/202603_cbed_R2py' , ROOTDIR)
-    FPATH     = f('/home/d.sasaki/scratch/mom_experiments/cbed_test_001/outputs_raw/19930101.ocean_daily.nc' , FPATH)
-    FTOPO     = f('/home/d.sasaki/schultz/d.sasaki/km_scale_model/mom6cobalt_25th/mom_tools/data/grid/nwa25_interped/netcdf3/ocean_topog.nc' , FTOPO)
-    FOUT = f(osp.join(ROOTDIR,'data/cache/porosity_neus25.nc') , FOUT)
-    
+    FGRD    = f(FGRD_CFG, FGRD)
+    ROOTDIR = f(ROOT_DIR_CFG, ROOTDIR)
+    FPATH   = f(FTEMPLATE_CFG, FPATH)  # porosity_main's FPATH is a single grid-template file, i.e. config's ftemplate
+    FTOPO   = f(FTOPO_CFG, FTOPO)
+    FOUT    = f(FOUT_CFG, FOUT)
+
     pr    = PorosityRegridder(
         fpath=FPATH,
         ftopo=FTOPO,
