@@ -111,9 +111,14 @@ if __name__ == '__main__':
     ROOT_DIR, CACHE_DIR, MOM6_TEMPLATE, CBED_PATTERN, FOUT_STITCH, nx_chunk, ny_chunk = load_config()
 
     fpath  = glob.glob(MOM6_TEMPLATE)
+    # chunk files are cbed_mom6_%03d.nc (cbed_wrapper.py): sorted as text = chunk order
     fpaths = sorted(glob.glob(CBED_PATTERN))
 
-    assert len(fpaths)==nx_chunk*ny_chunk, 'check the number of chunked cbed files'
+    n_chunks = nx_chunk*ny_chunk
+    expected = [f'cbed_mom6_{k:03d}.nc' for k in range(1, n_chunks + 1)]
+    found    = [osp.basename(f) for f in fpaths]
+    assert found == expected, (f'check the chunked cbed files: expected {expected[0]} ... '
+                               f'{expected[-1]} ({n_chunks} files), found {found}')
 
     #reading datasets
     dict_cbed = {i:xr.open_dataset(f) for i,f in enumerate(fpaths)}

@@ -503,7 +503,7 @@ if __name__ == '__main__':
     if CBED_CFG['method'] == 'newton_krylov':
         ds_3d.attrs['cbed2py_model'] = CBED_CFG['model']
         ds_3d.attrs['state_phase'] = 'periodic state at phase 0 of the forcing year (Jan 1)'
-    ds_3d.to_netcdf(osp.join(ROOT_DIR,f'data/cache/cbed_mom6_{chunk}.nc'))
+    ds_3d.to_netcdf(osp.join(ROOT_DIR,f'data/cache/cbed_mom6_{chunk:03d}.nc'))
 
     # per-point diagnostics (status, wall time, spin-up convergence). Not named
     # cbed*.nc so that cbed_stitch.py's cbed_pattern does not pick it up.
@@ -514,7 +514,7 @@ if __name__ == '__main__':
         coords={"level_1": iy, "level_2": ix},
         attrs={'cbed_method': CBED_CFG['method'],
                'status': '1 converged, 0 not converged, -1 failed, -2 land'})
-    ds_diag.to_netcdf(osp.join(ROOT_DIR, f'data/cache/spinup_diag_{chunk}.nc'))
+    ds_diag.to_netcdf(osp.join(ROOT_DIR, f'data/cache/spinup_diag_{chunk:03d}.nc'))
     ok = ds_diag['status'].values
     print(f"points: {np.sum(ok == 1)} ok, {np.sum(ok == 0)} not converged, "
           f"{np.sum(ok == -1)} failed, {np.sum(ok == -2)} land; "

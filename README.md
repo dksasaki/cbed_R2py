@@ -112,14 +112,14 @@ Reference `ncdump` headers are in `aux/`.
       ▼                                       ▼
 cbed_wrapper.py  ×  n_chunks            cbed_stitch.py
 ─────────────────────────────       ──────────────────────────
-    MOM6 + COBALT input                 cbed_mom6_1.nc
-            │                           cbed_mom6_2.nc
+    MOM6 + COBALT input                 cbed_mom6_001.nc
+            │                           cbed_mom6_002.nc
             ▼                               ...
-      CBED model (R/rpy2)               cbed_mom6_N.nc
+      CBED model (R/rpy2)               cbed_mom6_NNN.nc
       multiprocessing.Pool                     │
             │                                  ▼
             ▼                           cbed_results.nc
-  cbed_mom6_<chunk>.nc
+  cbed_mom6_<chunk:03d>.nc
 ```
 
 The domain is split into `nx × ny` tiles (default `8 × 1`). Run `cbed_wrapper.py` once per chunk, then `cbed_stitch.py` once to assemble the final output. For details to run these scripts read below.
@@ -129,9 +129,9 @@ The domain is split into `nx × ny` tiles (default `8 × 1`). Run `cbed_wrapper.
 
 ### `cbed_wrapper.py`
 
-Runs the CBED model for one domain chunk, distributing grid points across multiple processes. Chunking parameters and the CBED method are read from `config.toml`. Output is saved to `data/cache/cbed_mom6_<chunk>.nc`.
+Runs the CBED model for one domain chunk, distributing grid points across multiple processes. Chunking parameters and the CBED method are read from `config.toml`. Output is saved to `data/cache/cbed_mom6_<chunk:03d>.nc`.
 
-Per-point diagnostics go to `data/cache/spinup_diag_<chunk>.nc`: `status` (1 ok/converged, 0 not converged, -1 failed, -2 land), `wall_time` [s] and, for `newton_krylov`, `model_years`, `newton_steps`, `imbalance` and `rms_G`. 
+Per-point diagnostics go to `data/cache/spinup_diag_<chunk:03d>.nc`: `status` (1 ok/converged, 0 not converged, -1 failed, -2 land), `wall_time` [s] and, for `newton_krylov`, `model_years`, `newton_steps`, `imbalance` and `rms_G`. 
 
 ```bash
 python scripts/cbed_wrapper.py <nproc> <chunk>
@@ -174,7 +174,7 @@ pixi run python scripts/cbed_wrapper.py 192 5
 
 ### `cbed_stitch.py`
 
-Assembles all chunk files into a single analysis-ready NetCDF. All parameters come from `config.toml` — no arguments required. Raises an error if the number of `cbed_mom6_*.nc` files found does not match `nx × ny` in `config.toml`. Output is saved to `data/cbed_results.nc` with dimensions `(l=20, y=ny, x=nx)`.
+Assembles all chunk files into a single analysis-ready NetCDF. All parameters come from `config.toml` — no arguments required. Raises an error if the number of `cbed_mom6_*.nc` files found is not exactly `cbed_mom6_001.nc` … `cbed_mom6_<nx×ny>.nc` (three-digit chunk index, e.g. `cbed_mom6_040.nc`). Output is saved to `data/cbed_results.nc` with dimensions `(l=20, y=ny, x=nx)`.
 
 ```bash
 python scripts/cbed_stitch.py
