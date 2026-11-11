@@ -24,16 +24,16 @@ ny = 1
 # method = "newton_krylov"  cbed2py transient model spun up to its periodic state
 #                           under the one-year climatology of the forcing
 #                           (Jacobian-free Newton-Krylov, cbed2py.spinup)
-method = "steady_state"
+method = "newton_krylov"
 model  = "fast"             # cbed2py model for newton_krylov: "fast" (~7x quicker) or "v2"
 
 # cbed2py parameter overrides (newton_krylov only). The point setup (forcing,
 # porosity, temp, S, w, depth, f.OM1-3) is set by cbed_wrapper.py as for
 # steady_state.
 [cbed.params]
-jpoc_mode_reactivity    = "trailing_mean"   # instantaneous | longterm_mean | trailing_mean
-jpoc_mode_bioturbation  = "trailing_mean"
-jpoc_mode_bioirrigation = "trailing_mean"
+jpoc_mode_reactivity    = "instantaneous"   # instantaneous | longterm_mean | trailing_mean
+jpoc_mode_bioturbation  = "instantaneous"
+jpoc_mode_bioirrigation = "instantaneous"
 
 # keywords of cbed2py.spinup.newton_krylov_spinup (newton_krylov only)
 [cbed.spinup]
