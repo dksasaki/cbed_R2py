@@ -29,7 +29,7 @@ esmpy      = ">=8.5"
 [pypi-dependencies]
 # CBED model (cbedr2py_1d), pinned to a commit of branch dev_new_methods.
 # Local clone instead: cbed2py = { path = "../cbedr2py_1d", editable = true }
-cbed2py = { git = "https://github.com/dksasaki/cbedr2py_1d", rev = "eb62f53743d3cf2a5e647831479209f5e0e0da22" }
+cbed2py = { git = "https://github.com/dksasaki/cbedr2py_1d", rev = "ec8746ed058f5acd451850108ba0006403bbc6d3" }
 
 [tasks]
 setup-r = "Rscript -e \"install.packages(c('ReacTran', 'marelac'), repos='https://cloud.r-project.org')\""

@@ -307,7 +307,9 @@ def cbed_nk_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a,
     spin = {'max_newton': 10, 'verbose': False, **CBED_CFG['spinup']}
     y, hist, _ = newton_krylov_spinup(params, frc, **spin)
     h = hist[-1]
-    diag = {'status': 1 if h['converged'] else 0, 'model_years': h['runs'],
+    # each run integrates n_periods periods
+    diag = {'status': 1 if h['converged'] else 0,
+            'model_years': h['runs'] * spin.get('n_periods', 1) * spin.get('period', 1.0),
             'newton_steps': h['newton'], 'imbalance': h['imbalance'], 'rms_G': h['rms_G']}
     if not h['converged']:
         print(f"NOT CONVERGED i={i} j={j} cont={cont}: imbalance {h['imbalance']:+.4f}, "

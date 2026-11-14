@@ -37,8 +37,12 @@ jpoc_mode_bioirrigation = "instantaneous"
 
 # keywords of cbed2py.spinup.newton_krylov_spinup (newton_krylov only)
 [cbed.spinup]
+n_periods     = 1           # years per shot; longer shots (5-10) help slow-OM points
+                            # converge, but each Newton step costs n_periods times more
 max_newton    = 10          # the test point needed 8
 gmres_iter    = 20
 tol_imbalance = 0.05        # umol C cm-2 yr-1
 tol_f         = 3e-5
 n_sub         = 12
+scale_abs     = 1e-3        # minimum scale of each unknown (state units), so a
+                            # species ~0 at the start (e.g. ODU) does not swamp ||G||
