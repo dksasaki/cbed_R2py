@@ -243,7 +243,8 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i,j,cont, star
 # ---------------------------------------------------------------------------
 STATE_NAMES = ["OM1", "OM2", "OM3", "O2", "NH4", "NO3", "ODU", "DIC", "TAlk"]
 J_CONV = 6.625 * 1000 * 3600 * 24 * 365 / 10   # mol N m-2 s-1 -> umol C cm-2 yr-1 (as cbed_wrapped)
-DIAG_KEYS = ('status', 'wall_time', 'model_years', 'newton_steps', 'imbalance', 'rms_G')
+DIAG_KEYS = ('status', 'wall_time', 'model_years', 'newton_steps', 'imbalance',
+             'imbalance_rel', 'rms_G')
 # status: 1 converged, 0 not converged (best state kept), -1 failed, -2 land
 
 
@@ -307,15 +308,22 @@ def cbed_nk_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a,
     params.update({v: float(np.mean(frc[v])) for v in frc if v != 'time'})
 
     spin = {'max_newton': 10, 'verbose': False, **CBED_CFG['spinup']}
+    # imbalance tolerance relative to this point's J.OM (same relative accuracy
+    # everywhere); an absolute tol_imbalance in the config takes precedence
+    rel = spin.pop('tol_imbalance_rel', None)
+    if rel is not None and 'tol_imbalance' not in spin:
+        spin['tol_imbalance'] = rel * params['J.OM']      # params['J.OM'] = annual mean of frc
     y, hist, _ = newton_krylov_spinup(params, frc, **spin)
     h = hist[-1]
     # each run integrates n_periods periods
     diag = {'status': 1 if h['converged'] else 0,
             'model_years': h['runs'] * spin.get('n_periods', 1) * spin.get('period', 1.0),
-            'newton_steps': h['newton'], 'imbalance': h['imbalance'], 'rms_G': h['rms_G']}
+            'newton_steps': h['newton'], 'imbalance': h['imbalance'],
+            'imbalance_rel': h['imbalance'] / params['J.OM'] if params['J.OM'] > 0 else np.nan,
+            'rms_G': h['rms_G']}
     if not h['converged']:
-        print(f"NOT CONVERGED i={i} j={j} cont={cont}: imbalance {h['imbalance']:+.4f}, "
-              f"|G|rms {h['rms_G']:.2e}", flush=True)
+        print(f"NOT CONVERGED i={i} j={j} cont={cont}: imbalance {h['imbalance']:+.4f} "
+              f"({100*diag['imbalance_rel']:+.3f}% of J.OM), |G|rms {h['rms_G']:.2e}", flush=True)
 
     N = y.size // len(STATE_NAMES)
     midx = pd.MultiIndex.from_product([np.arange(N), [cont]])

@@ -41,7 +41,10 @@ n_periods     = 1           # years per shot; longer shots (5-10) help slow-OM p
                             # converge, but each Newton step costs n_periods times more
 max_newton    = 10          # the test point needed 8
 gmres_iter    = 20
-tol_imbalance = 0.05        # umol C cm-2 yr-1
+tol_imbalance_rel = 1e-3    # OM imbalance tolerance as a fraction of the point's
+                            # annual-mean J.OM (1e-3 = 0.1%), converted per point by
+                            # cbed_wrapper.py; an absolute tol_imbalance [umol C cm-2 yr-1]
+                            # is used instead if given
 tol_f         = 5e-5        # RMS relative state change per year; drift over 100 yr <~ 100*tol_f (~0.5%)
 n_sub         = 12
 scale_abs     = 1e-3        # minimum scale of each unknown (state units), so a
