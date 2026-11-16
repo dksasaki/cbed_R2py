@@ -7,7 +7,8 @@
 #SBATCH --time=01:00:00
 #SBATCH --exclude=d3032,d3232,d3203
 
+# usage: sbatch execute.sh [N_WORKERS] [CHUNK]
 N_WORKERS=${1:-128}
-THREADS_PER_WORKER=${2:-1}
+CHUNK=${2:-1}
 
-pixi run python scripts/cbed_wrapper.py "$N_WORKERS" "$THREADS_PER_WORKER"
+pixi run python scripts/cbed_wrapper.py "$N_WORKERS" "$CHUNK"
