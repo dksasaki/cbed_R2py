@@ -8,7 +8,7 @@ import os.path as osp
 import sys
 import xarray as xr
 import pandas as pd
-from multiprocessing import Pool
+from multiprocessing import Pool, Value
 import logging
 import model_reader as mr
 from porosity2cbed import porosity_main
@@ -105,8 +105,20 @@ def empty_ds(i):
     )
     return ds_empty
 
-def init_worker():
-    global r
+# progress of the chunk: points finished (shared by all workers) and total
+_DONE, _N_TOTAL = None, 1
+
+
+def progress():
+    """'[12.3% done]': share of the chunk's points finished so far"""
+    if _DONE is None:
+        return ''
+    return f'[{100 * _DONE.value / _N_TOTAL:.1f}% done]'
+
+
+def init_worker(done=None, n_total=1):
+    global r, _DONE, _N_TOTAL
+    _DONE, _N_TOTAL = done, max(n_total, 1)
     if CBED_CFG['method'] == 'newton_krylov':
         import cbed2py
         cbed2py.set_model(CBED_CFG['model'])
@@ -198,7 +210,7 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i,j,cont, star
     if start_r is False:
         global r
 
-    print(f"Running point i={i} j={j} cont={cont}", flush=True)
+    print(f"Running point i={i} j={j} cont={cont} {progress()}", flush=True)
 
     if start_r:
         source = lambda x: f"source(\"{x}\")"
@@ -225,7 +237,7 @@ def cbed_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i,j,cont, star
     try:
         r_out_ss = r("cbed_model(py_pars)")
     except Exception as e:
-        print(f"FAILED i={i} j={j} cont={cont}", flush=True)
+        print(f"FAILED i={i} j={j} cont={cont} {progress()}", flush=True)
         print(f'{i} {j}',', '.join(f"{k}={_default_pars[k]}" for k in pars_items), flush=True)
         return empty_ds(cont)
     # names were obtained from the cbed code
@@ -297,7 +309,7 @@ def cbed_nk_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a,
     """
     from cbed2py.spinup import newton_krylov_spinup
 
-    print(f"Running point i={i} j={j} cont={cont} (newton_krylov)", flush=True)
+    print(f"Running point i={i} j={j} cont={cont} {progress()} (newton_krylov)", flush=True)
     frc = point_forcing(clim_btm_a.isel(xh=i, yh=j), clim_tr_a.isel(xh=i, yh=j))
 
     params = dict(CBED_CFG['params'])
@@ -322,7 +334,7 @@ def cbed_nk_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a,
             'imbalance_rel': h['imbalance'] / params['J.OM'] if params['J.OM'] > 0 else np.nan,
             'rms_G': h['rms_G']}
     if not h['converged']:
-        print(f"NOT CONVERGED i={i} j={j} cont={cont}: imbalance {h['imbalance']:+.4f} "
+        print(f"NOT CONVERGED i={i} j={j} cont={cont} {progress()}: imbalance {h['imbalance']:+.4f} "
               f"({100*diag['imbalance_rel']:+.3f}% of J.OM), |G|rms {h['rms_G']:.2e}", flush=True)
 
     N = y.size // len(STATE_NAMES)
@@ -332,12 +344,22 @@ def cbed_nk_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a,
 
 
 def run_point(args):
+    """one point; counts it as finished for progress(), whatever the outcome"""
+    try:
+        return _run_point(args)
+    finally:
+        if _DONE is not None:
+            with _DONE.get_lock():
+                _DONE.value += 1
+
+
+def _run_point(args):
     cont, iv, jv, i,j, valid_points = args
     # iv, jv are global indices that are comparable with valid_points set
     # i,j are local indices used to find the point in the dataset through isel
     diag = dict.fromkeys(DIAG_KEYS, np.nan)
     if (jv,iv) not in valid_points:
-        print(i,j,'land')
+        print(i, j, 'land', progress())
         diag['status'] = -2
         return cont, empty_ds(cont), diag
 
@@ -348,7 +370,7 @@ def run_point(args):
                                     clim_btm_a, clim_tr_a, i, j, cont)
             diag.update(d)
         except Exception as e:
-            print(f"FAILED i={i} j={j} cont={cont}: {e}", flush=True)
+            print(f"FAILED i={i} j={j} cont={cont} {progress()}: {e}", flush=True)
             ds = empty_ds(cont)
             diag['status'] = -1
     else:
@@ -492,7 +514,9 @@ if __name__ == '__main__':
                                                       jm.ravel()))]
     
     print(f"starting pool: nproc={nproc}", flush=True)
-    with Pool(processes=nproc, initializer=init_worker, maxtasksperchild=20) as pool:
+    done = Value('i', 0)        # points finished, shared by the workers (progress())
+    with Pool(processes=nproc, initializer=init_worker, initargs=(done, len(args)),
+              maxtasksperchild=20) as pool:
         results = pool.map(run_point, args)
 
     ds    = {cont: d for cont, d, _ in results}
