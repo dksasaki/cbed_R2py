@@ -25,6 +25,7 @@ dask       = "==2023.10.1"
 netcdf4    = "==1.6.5"
 xesmf      = "*"
 esmpy      = ">=8.5"
+jupyter = ">=1.1.1,<2"
 
 [pypi-dependencies]
 # CBED model (cbedr2py_1d), pinned to a commit of branch dev_new_methods.
