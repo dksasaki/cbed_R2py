@@ -14,10 +14,13 @@ import model_reader as mr
 from porosity2cbed import porosity_main
 import tomllib
 import time
+
 # R model files of cbed2py (cbedr2py_1d): cbed_v2_func.R (steady state) and
 # the transient models used by method 'newton_krylov'
 from cbed2py import MODEL_DIR as CBED2PY_MODEL_DIR
+from cbed2py.spinup import newton_krylov_spinup
 
+import cbed2py
 
 def load_config(config_path='config.toml'):
     with open(config_path, 'rb') as f:
@@ -117,14 +120,20 @@ def progress():
 
 
 def init_worker(done=None, n_total=1):
+    # Pool forks replacement workers (after maxtasksperchild, or when a worker
+    # dies) from its handler thread, whose empty context gives rpy2's converter
+    # ContextVar its default, `missingconverter`, which raises on every
+    # conversion. Set the converter rpy2 sets at import time.
+
+    from rpy2.robjects import conversion, default_converter
+
     global r, _DONE, _N_TOTAL
     _DONE, _N_TOTAL = done, max(n_total, 1)
+    conversion.set_conversion(default_converter)
     if CBED_CFG['method'] == 'newton_krylov':
-        import cbed2py
         cbed2py.set_model(CBED_CFG['model'])
         cbed2py.default_params()        # sources the cbed2py R model once per worker
         return
-    import rpy2.robjects as ro
     r = ro.r
     r(f'source("{CBED2PY_MODEL_DIR}/cbed_v2_func.R")')   # CBED v2 steady state (cbedr2py_1d)
     r(f'source("{ROOT_DIR}/scripts/default_CBED_pars.R")')
@@ -309,7 +318,6 @@ def cbed_nk_wrapped(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a,
     ds   the periodic state at phase 0 (Jan 1), same layout as cbed_wrapped
     diag spin-up diagnostics (DIAG_KEYS)
     """
-    from cbed2py.spinup import newton_krylov_spinup
 
     print(f"Running point i={i} j={j} cont={cont} {progress()} (newton_krylov)", flush=True)
     frc = point_forcing(clim_btm_a.isel(xh=i, yh=j), clim_tr_a.isel(xh=i, yh=j))
