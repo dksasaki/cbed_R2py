@@ -179,7 +179,7 @@ def point_params(dsmom_a, dscob_a, dscob2_a, dsporo_a, dsdepth_a, i, j):
     _default_pars["NO3.w"]   = max([0, btm_no3])  * 1e3
     _default_pars["NH4.w"]   = max([0, btm_nh4])  * 1e3
     _default_pars["DIC.w"]     = max([0, btm_dic]) * 1e3
-    _default_pars["TAlk.w"]  = max([0, btm_talk])
+    _default_pars["TAlk.w"]  = max([0, btm_talk])     # 'talk' is already mM (~2.4): no x1e3
     _default_pars["S"]       = max([0, btm_salt])
     _default_pars["depth"]   = max([0, btm_depth])
 
@@ -254,13 +254,15 @@ def forcing_fields(clim_btm, clim_tr):
       btm: J.OM, O2.w, NO3.w, DIC.w   (cobalt_btm_clim.nc)
       tr : NH4.w, TAlk.w              (cobalt_tr_clim.nc, bottom level)
     Concentrations mol kg-1 -> mM (x1e3), as done for O2/NO3/NH4/DIC in point_params.
+    TAlk is the exception: 'talk' in the tracer file is already ~2.4 (mM), so it
+    is used as is, the same as in point_params (x1e3 gave TAlk.w ~2400).
     """
     btm = xr.Dataset({'J.OM':  clim_btm['fntot_btm'] * J_CONV,
                       'O2.w':  clim_btm['btm_o2'] * 1e3,
                       'NO3.w': clim_btm['btm_no3'] * 1e3,
                       'DIC.w': clim_btm['btm_dic'] * 1e3})
     tr = xr.Dataset({'NH4.w':  clim_tr['nh4'] * 1e3,
-                     'TAlk.w': clim_tr['talk'] * 1e3})
+                     'TAlk.w': clim_tr['talk']})            # already mM, see above
     return btm, tr
 
 
