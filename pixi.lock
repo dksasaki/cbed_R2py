@@ -335,7 +335,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-ng-2.3.3-hceb46e0_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstandard-0.25.0-py311haee01d2_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
-      - pypi: git+https://github.com/dksasaki/cbedr2py_1d?rev=ec8746ed058f5acd451850108ba0006403bbc6d3#ec8746ed058f5acd451850108ba0006403bbc6d3
+      - pypi: git+https://github.com/dksasaki/cbedr2py_1d?rev=33dbdeb0ef5ce16807ffe385026ce9b5afcf233e#33dbdeb0ef5ce16807ffe385026ce9b5afcf233e
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
   build_number: 20
@@ -819,7 +819,7 @@ packages:
   purls: []
   size: 978114
   timestamp: 1741554591855
-- pypi: git+https://github.com/dksasaki/cbedr2py_1d?rev=ec8746ed058f5acd451850108ba0006403bbc6d3#ec8746ed058f5acd451850108ba0006403bbc6d3
+- pypi: git+https://github.com/dksasaki/cbedr2py_1d?rev=33dbdeb0ef5ce16807ffe385026ce9b5afcf233e#33dbdeb0ef5ce16807ffe385026ce9b5afcf233e
   name: cbed2py
   version: 0.1.0
   requires_python: '>=3.11'

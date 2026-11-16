@@ -268,22 +268,27 @@ def read_variables(root_dir: str, fpath: str, ftopo: str, cache_dir:str) -> tupl
 
 def annual_climatology(ds):
     """
-    Mean seasonal cycle of a time series, on coordinate 'phase' [yr] in (0, 1)
-    (phase 0 = Jan 1): by day of year (day 366 dropped) for sub-monthly data,
-    by month otherwise. Multi-year input is averaged over the years.
+    Mean seasonal cycle of a time series as 12 monthly means, on coordinate
+    'phase' [yr] = (month - 0.5)/12, i.e. mid-month (phase 0 = Jan 1).
+    Daily (or any sub-monthly) input is averaged within each calendar month;
+    multi-year input is averaged over the years.
+
+    Monthly rather than day-of-year means: cbed2py interpolates the forcing
+    linearly, every sample is a kink that shortens lsoda's step, and noisy
+    daily bottom-water data makes a model year ~13x more expensive (7.6 vs
+    0.6 s) for little change in the slow OM pools the spin-up solves for.
+    Use cbed2py >= the commit with the phase-preserving periodic_forcing():
+    older versions resample the 12 values onto a grid offset by half a month,
+    which flattens the seasonal cycle.
     """
     if ds.sizes['time'] < 2:
         raise ValueError('a climatology needs time-varying data (time size >= 2)')
-    dt_days = np.median(np.diff(ds.time.values)) / np.timedelta64(1, 'D')
-    if dt_days < 20:
-        clim = ds.groupby('time.dayofyear').mean('time')
-        clim = clim.sel(dayofyear=clim.dayofyear <= 365)
-        phase = (clim.dayofyear.values - 0.5) / 365
-        clim = clim.rename(dayofyear='phase')
-    else:
-        clim = ds.groupby('time.month').mean('time')
-        phase = (clim.month.values - 0.5) / 12
-        clim = clim.rename(month='phase')
+    clim = ds.groupby('time.month').mean('time')
+    if clim.sizes['month'] != 12:
+        raise ValueError(f"a monthly climatology needs all 12 months, got "
+                         f"{clim.month.values.tolist()}")
+    phase = (clim.month.values - 0.5) / 12
+    clim = clim.rename(month='phase')
     clim = clim.assign_coords(phase=phase)
     clim['phase'].attrs = {'units': 'yr', 'long_name': 'fraction of the year (0 = Jan 1)'}
     for v in ds.data_vars:
@@ -335,8 +340,17 @@ def read_climatology(root_dir: str, fpath: str, ftopo: str, cache_dir: str) -> d
         ds = ds.ffill(dim='z_l').isel(z_l=-1)[['nh4', 'talk']]
         return _persist_and_save(annual_climatology(ds).astype('float32'), fsave)
 
-    return {'dscobalt_btm': _cached(osp.join(cache_dir, 'cobalt_btm_clim.nc'), _clim_cobalt_btm),
-            'dscobalt_tr':  _cached(osp.join(cache_dir, 'cobalt_tr_clim.nc'),  _clim_cobalt_tr)}
+    out = {}
+    for key, fname, fn in (('dscobalt_btm', 'cobalt_btm_clim.nc', _clim_cobalt_btm),
+                           ('dscobalt_tr',  'cobalt_tr_clim.nc',  _clim_cobalt_tr)):
+        fsave = osp.join(cache_dir, fname)
+        ds = _cached(fsave, fn)
+        if ds.sizes.get('phase') != 12:
+            raise ValueError(f"{fsave} has {ds.sizes.get('phase')} phases, expected 12 "
+                             f"monthly means (cache from the old day-of-year climatology?). "
+                             f"Delete it to recompute.")
+        out[key] = ds
+    return out
 
 
 if __name__ =='__main__':
