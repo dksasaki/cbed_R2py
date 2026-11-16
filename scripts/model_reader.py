@@ -305,10 +305,11 @@ def read_climatology(root_dir: str, fpath: str, ftopo: str, cache_dir: str) -> d
       cobalt_btm_clim.nc : fntot_btm (= fndet+fndi+fnsm+fnmd+fnlg_btm),
                            btm_o2, btm_no3, btm_dic           (phase, yh, xh)
       cobalt_tr_clim.nc  : nh4, talk at the bottom level      (phase, yh, xh)
-    The bottom level of cobalt_tracers is selected as in read_variables.
+      mom6_clim.nc       : temp at the bottom level           (phase, yh, xh)
+    The bottom levels are selected as in read_variables.
     Delete the cache files to recompute them (e.g. after changing fpath).
 
-    Returns dict with 'dscobalt_btm' and 'dscobalt_tr'.
+    Returns dict with 'dscobalt_btm', 'dscobalt_tr' and 'dsmom'.
     """
     _ = get_client()
 
@@ -340,9 +341,18 @@ def read_climatology(root_dir: str, fpath: str, ftopo: str, cache_dir: str) -> d
         ds = ds.ffill(dim='z_l').isel(z_l=-1)[['nh4', 'talk']]
         return _persist_and_save(annual_climatology(ds).astype('float32'), fsave)
 
+    def _clim_mom(fsave):
+        # bottom temperature, selected as in read_variables (_read_mom: zl=-1)
+        fpaths = osp.join(fpath, '*ocean_daily_*.nc')
+        ds = read_mom6cobalt(fpaths, ftopo, ['temp'],
+                             chunk_dict=dict(xh=50, yh=50, time=-1, zl=-1))
+        ds = ds.isel(zl=-1)[['temp']]
+        return _persist_and_save(annual_climatology(ds).astype('float32'), fsave)
+
     out = {}
     for key, fname, fn in (('dscobalt_btm', 'cobalt_btm_clim.nc', _clim_cobalt_btm),
-                           ('dscobalt_tr',  'cobalt_tr_clim.nc',  _clim_cobalt_tr)):
+                           ('dscobalt_tr',  'cobalt_tr_clim.nc',  _clim_cobalt_tr),
+                           ('dsmom',        'mom6_clim.nc',       _clim_mom)):
         fsave = osp.join(cache_dir, fname)
         ds = _cached(fsave, fn)
         if ds.sizes.get('phase') != 12:

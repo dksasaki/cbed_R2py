@@ -260,11 +260,12 @@ DIAG_KEYS = ('status', 'wall_time', 'model_years', 'newton_steps', 'imbalance',
 # status: 1 converged, 0 not converged (best state kept), -1 failed, -2 land
 
 
-def forcing_fields(clim_btm, clim_tr):
+def forcing_fields(clim_btm, clim_tr, clim_mom):
     """
-    Time-varying CBED forcing [CBED units] from the COBALT climatologies
+    Time-varying CBED forcing [CBED units] from the COBALT/MOM6 climatologies
     (mr.read_climatology):
       btm: J.OM, O2.w, NO3.w, DIC.w   (cobalt_btm_clim.nc)
+           temp [degC]                (mom6_clim.nc, bottom level)
       tr : NH4.w, TAlk.w              (cobalt_tr_clim.nc, bottom level)
     Concentrations mol kg-1 -> mM (x1e3), as done for O2/NO3/NH4/DIC in point_params.
     TAlk is the exception: 'talk' in the tracer file is already ~2.4 (mM), so it
@@ -273,7 +274,8 @@ def forcing_fields(clim_btm, clim_tr):
     btm = xr.Dataset({'J.OM':  clim_btm['fntot_btm'] * J_CONV,
                       'O2.w':  clim_btm['btm_o2'] * 1e3,
                       'NO3.w': clim_btm['btm_no3'] * 1e3,
-                      'DIC.w': clim_btm['btm_dic'] * 1e3})
+                      'DIC.w': clim_btm['btm_dic'] * 1e3,
+                      'temp':  clim_mom['temp']})
     tr = xr.Dataset({'NH4.w':  clim_tr['nh4'] * 1e3,
                      'TAlk.w': clim_tr['talk']})            # already mM, see above
     return btm, tr
@@ -484,7 +486,8 @@ if __name__ == '__main__':
         x0, x1, y0, y1 = chunk_bounds(chunk, ny, nx, n_chunks_x=nx_chunk, n_chunks_y=ny_chunk)
         sub = dict(xh=slice(x0, x1), yh=slice(y0, y1))
         btm, tr = forcing_fields(clim_dict['dscobalt_btm'].isel(**sub),
-                                 clim_dict['dscobalt_tr'].isel(**sub))
+                                 clim_dict['dscobalt_tr'].isel(**sub),
+                                 clim_dict['dsmom'].isel(**sub))
         clim_btm_a = btm.astype('float32').load()
         clim_tr_a  = tr.astype('float32').load()
         print(f"forcing climatology: {clim_btm_a.sizes['phase']} phases (cobalt_btm), "
